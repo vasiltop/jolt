@@ -165,7 +165,7 @@ auto consume(Tokenizer &tokenizer) -> Token {
 
   Token t{.pos = tokenizer.pos, .kind = TokenKind::Invalid};
 
-  // These three are used for parsing multi character tokens
+  // These two are used for parsing multi character tokens
   // such as Identifiers and Integers
   const char *first = &tokenizer.data[pos.offset];
   size_t count{1};
@@ -173,10 +173,11 @@ auto consume(Tokenizer &tokenizer) -> Token {
   if (std::isalpha(cur)) {
     t.kind = TokenKind::Ident;
 
-		for (auto o = peek_char(tokenizer); o && (std::isalnum(*o) || *o == '_'); o = peek_char(tokenizer)) {
-			next_char(tokenizer);
-			count++;
-		}
+    for (auto o = peek_char(tokenizer); o && (std::isalnum(*o) || *o == '_');
+         o = peek_char(tokenizer)) {
+      next_char(tokenizer);
+      count++;
+    }
 
     std::string_view ident_view(first, count);
     std::unordered_map<std::string_view, TokenKind> keywords{
@@ -193,11 +194,11 @@ auto consume(Tokenizer &tokenizer) -> Token {
   } else if (std::isdigit(cur)) { // TODO: decimal numbers
     t.kind = TokenKind::Integer;
 
-
-		for (auto o = peek_char(tokenizer); o && std::isdigit(*o); o = peek_char(tokenizer)) {
-			next_char(tokenizer);
-			count++;
-		}
+    for (auto o = peek_char(tokenizer); o && std::isdigit(*o);
+         o = peek_char(tokenizer)) {
+      next_char(tokenizer);
+      count++;
+    }
 
     t.text = std::string_view(first, count);
 
