@@ -1,31 +1,48 @@
 #include "tokenizer.cpp"
+#include <expected>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
-#include <optional>
 
 struct Parser {
   Tokenizer tokenizer;
 };
 
-std::optional<std::string> read_entire_file(const std::filesystem::path &path) {
-	std::ifstream is{path, std::ios::ate | std::ios::binary};
-	if (!is) return std::nullopt;
+enum class ParserErrorKind {
+  FileNotFound,
+  ReadError,
+};
 
-	auto size = is.tellg();
-	is.seekg(0);
+struct ParserError {
+  ParserErrorKind kind;
+  std::string msg;
+};
 
-	std::string out(size, '\0');
-	if(!is.read(out.data(), size)) return std::nullopt;
+auto read_entire_file(const std::filesystem::path &path) -> std::expected<std::string, ParserError> {
+  std::ifstream is{path, std::ios::ate | std::ios::binary};
+  if (!is)
+    return std::unexpected(ParserError{ParserErrorKind::FileNotFound});
 
-	return out;
+  auto size = is.tellg();
+  is.seekg(0);
+
+  std::string out(size, '\0');
+  if (!is.read(out.data(), size))
+    return std::unexpected(ParserError{ParserErrorKind::ReadError});
+
+  return out;
 }
 
-bool parser_init(Parser &parser, const std::filesystem::path &path) {
-	auto data = read_entire_file(path);
-	if (!data) return false;
-	
-	Tokenizer tokenizer{std::move(*data)};
+auto parser_init(Parser &parser, const std::filesystem::path &path) -> bool {
+  auto data = read_entire_file(path);
+  if (!data.has_value())
+    return false;
 
-	return true;
+  Tokenizer tokenizer{std::move(*data)};
+
+	for (auto tok = consume(tokenizer); tok.kind != TokenKind::Eof; tok = consume(tokenizer)) {
+		std::cout << tok.text << " - " << token_kind_string[static_cast<size_t>(tok.kind)] << std::endl;
+	}
+
+  return true;
 }

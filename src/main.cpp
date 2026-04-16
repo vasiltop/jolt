@@ -1,8 +1,8 @@
-#include <filesystem>
 #include "parser.cpp"
+#include <filesystem>
 
-int main() {
-	auto filename = std::filesystem::absolute("./examples/test.jolt");
-	Parser parser{};
-	parser_init(parser, filename);
+auto main() -> int {
+  auto filename = std::filesystem::canonical("./examples/test.jolt");
+  Parser parser{};
+  parser_init(parser, filename);
 }
