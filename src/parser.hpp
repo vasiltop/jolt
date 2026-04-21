@@ -14,10 +14,10 @@
 class Parser {
 
 public:
-  auto parse_path(const std::filesystem::path &path) -> Errors {
+  auto parse_path(const std::filesystem::path &path) -> std::vector<Error> {
     auto canonical = std::filesystem::canonical(path);
     parse_queue_.push(canonical);
-    Errors errors;
+    std::vector<Error> errors;
 
     while (!parse_queue_.empty()) {
       auto p = parse_queue_.front();
@@ -34,22 +34,22 @@ public:
       auto module_name = parse_module_name(tokenizer);
 
       if (!module_name) {
-				errors.push_back(module_name.error());
+        errors.push_back(module_name.error());
         continue;
       }
 
       auto hir_nodes = hir(tokenizer);
-			if (!hir_nodes) {
-				errors.push_back(hir_nodes.error());
-				continue;
-			}
+      if (!hir_nodes) {
+        errors.push_back(hir_nodes.error());
+        continue;
+      }
 
       modules_hir_[*module_name] = *hir_nodes;
     }
 
-		if (errors.size()) {
-			return errors;
-		}
+    if (errors.size()) {
+      return errors;
+    }
 
     Checker checker;
     auto success = checker.check_modules(modules_hir_);
@@ -62,8 +62,7 @@ public:
 
   const ModulesHir &get_modules() const { return modules_hir_; }
 
-  auto hir(Tokenizer &tokenizer)
-      -> std::expected<std::vector<Hir>, Error<TokenizerError>> {
+  auto hir(Tokenizer &tokenizer) -> std::expected<std::vector<Hir>, Error> {
     std::vector<Hir> nodes;
 
     // TODO: Maybe we should create a peek instead so the first token is not
@@ -82,7 +81,7 @@ public:
 
 private:
   auto parse_module_name(Tokenizer &tokenizer)
-      -> std::expected<std::string, Error<TokenizerError>> {
+      -> std::expected<std::string, Error> {
     auto mod = tokenizer.expect_token_and_pop(TokenKind::Module);
     PROP_ERR(mod);
 
@@ -96,19 +95,16 @@ private:
   }
 
   static auto read_entire_file(const std::filesystem::path &path)
-      -> std::expected<std::string, Error<ParserError>> {
+      -> std::expected<std::string, Error> {
     std::ifstream is{path, std::ios::ate | std::ios::binary};
     if (!is)
-      return std::unexpected(
-          Error<ParserError>{.kind = ParserError::FileNotFound});
+      return std::unexpected(Error{.msg = "File not found"});
 
     auto size = is.tellg();
     is.seekg(0);
-
     std::string out(size, '\0');
     if (!is.read(out.data(), size))
-      return std::unexpected(
-          Error<ParserError>{.kind = ParserError::ReadError});
+      return std::unexpected(Error{.msg = "Read error"});
 
     return out;
   }

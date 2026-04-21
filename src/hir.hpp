@@ -18,7 +18,7 @@ struct HirReturn : HirBase {
   Token expression; // TODO: Make this an actual expression, not just an int.
 
   static auto try_parse(Tokenizer &tokenizer)
-      -> std::expected<HirReturn, Error<TokenizerError>> {
+      -> std::expected<HirReturn, Error> {
 
     // TODO: Handle any expression type
     auto ret_err = tokenizer.expect_token_and_pop(TokenKind::Ret);
@@ -53,7 +53,7 @@ struct HirFnDef : HirBase {
       : name(name_), return_type(return_type_), block(std::move(block_)) {}
 
   static auto try_parse(Tokenizer &tokenizer)
-      -> std::expected<HirFnDef, Error<TokenizerError>> {
+      -> std::expected<HirFnDef, Error> {
     // We are ignoring the Fn since the parser already consumed it, this might
     // change.
 

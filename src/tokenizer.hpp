@@ -46,15 +46,14 @@ public:
   }
 
   auto expect_token_and_pop(TokenKind kind)
-      -> std::expected<Token, Error<TokenizerError>> {
+      -> std::expected<Token, Error> {
     auto tok = consume();
 
     if (tok.kind != kind) {
       auto found = token_kind_string[static_cast<size_t>(tok.kind)];
       auto expected = token_kind_string[static_cast<size_t>(kind)];
 
-      return std::unexpected(Error<TokenizerError>{
-          .kind = TokenizerError::UnexpectedToken,
+      return std::unexpected(Error{
           .msg = std::format("{}:{}:{}: error: expected token {}, found {}.",
                              get_filename(), tok.pos.line,
                              tok.pos.col, expected, found)});

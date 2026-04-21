@@ -1,5 +1,9 @@
 module test;
 
-fn test() int {
-	ret 15;
+struct A {
+
+}
+
+fn main() int {
+	ret 0;
 }

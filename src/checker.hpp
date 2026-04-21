@@ -15,7 +15,7 @@ private:
 
 public:
   auto check_modules(ModulesHir &modules)
-      -> std::expected<void, Error<CheckerError>> {
+      -> std::expected<void, Error> {
     // TODO: parse the function / struct / etc .. definitions in the modules
     // and verify that there are no errors.
 
@@ -29,14 +29,14 @@ public:
     return {};
   }
 
-  auto check(HirReturn &ret) -> std::expected<void, Error<CheckerError>> {
+  auto check(HirReturn &ret) -> std::expected<void, Error> {
     // TODO: Check the contents
     ret.type = Type{.data = PrimitiveType{.kind = PrimitiveKind::Int}};
 
     return {};
   }
 
-  auto check(HirFnDef &fn) -> std::expected<void, Error<CheckerError>> {
+  auto check(HirFnDef &fn) -> std::expected<void, Error> {
     auto *old_fn = ctx.current_fn;
     ctx.current_fn = &fn;
 
@@ -52,11 +52,11 @@ public:
     return {};
   }
 
-  auto visit(Hir &hir) -> std::expected<void, Error<CheckerError>> {
+  auto visit(Hir &hir) -> std::expected<void, Error> {
     return std::visit([&](auto &&arg) { return check(arg); }, hir);
   }
 
-  auto visit(HirStmt &stmt) -> std::expected<void, Error<CheckerError>> {
+  auto visit(HirStmt &stmt) -> std::expected<void, Error> {
     return std::visit([&](auto &&arg) { return check(arg); }, stmt.item);
   }
 };

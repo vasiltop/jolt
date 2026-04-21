@@ -13,7 +13,7 @@ auto main(int argc, char **argv) -> int {
 
   if (errors.size()) {
     for (auto &err : errors) {
-      std::visit([](auto &&arg) { std::cout << arg.msg << std::endl; }, err);
+      std::cout << err.msg << std::endl;
     }
 
     return 1;
