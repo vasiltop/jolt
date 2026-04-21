@@ -18,13 +18,29 @@ inline void print_indent(int indent) {
     for (int i = 0; i < indent; ++i) std::cout << "  ";
 }
 
+template<class... Ts>
+struct overloaded : Ts... { using Ts::operator()...; };
+template<class... Ts>
+overloaded(Ts...) -> overloaded<Ts...>;
+
+inline void print_hir(const Hir& hir, int indent = 0);
+inline void print_hir(const HirStmt& stmt, int indent);
+
 inline void print_hir(const HirReturn& ret, int indent) {
     print_indent(indent);
-    std::cout << "Return: " << ret.expression.text << " [" << type_to_string(ret.type) << "]\n";
+    std::cout << "Return: [expr]" << " [" << type_to_string(ret.type) << "]\n";
 }
 
 inline void print_hir(const HirStmtItem& item, int indent) {
-    std::visit([indent](auto&& arg) { print_hir(arg, indent); }, item);
+    std::visit([indent](auto&& arg) { 
+        using T = std::decay_t<decltype(arg)>;
+        if constexpr (std::is_same_v<T, HirReturn>) {
+            print_hir(arg, indent);
+        } else {
+            print_indent(indent);
+            std::cout << "<other stmt>\n";
+        }
+    }, item);
 }
 
 inline void print_hir(const HirStmt& stmt, int indent) {
@@ -43,12 +59,20 @@ inline void print_hir(const HirBlock& block, int indent) {
 
 inline void print_hir(const HirFnDef& fn, int indent) {
     print_indent(indent);
-    std::cout << "FnDef: " << fn.name.text << "() -> " << fn.return_type.text << " [" << type_to_string(fn.type) << "]\n";
+    std::cout << "FnDef: " << fn.name.text << "() -> " << (fn.return_type ? fn.return_type->text : "void") << " [" << type_to_string(fn.type) << "]\n";
     print_hir(fn.block, indent + 1);
 }
 
-inline void print_hir(const Hir& hir, int indent = 0) {
-    std::visit([indent](auto&& arg) { print_hir(arg, indent); }, hir);
+inline void print_hir(const Hir& hir, int indent) {
+    std::visit([indent](auto&& arg) { 
+        using T = std::decay_t<decltype(arg)>;
+        if constexpr (std::is_same_v<T, HirFnDef>) {
+            print_hir(arg, indent);
+        } else {
+            print_indent(indent);
+            std::cout << "<other top-level item>\n";
+        }
+    }, hir);
 }
 
 inline void print_modules(const ModulesHir& modules) {

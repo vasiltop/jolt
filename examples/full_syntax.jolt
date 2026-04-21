@@ -9,6 +9,10 @@ fn add<T>(a: T, b: T) T {
     ret a + b;
 }
 
+fn two<T, K>(a: T, b: K) void {
+	return;
+}
+
 fn print_greeting(name: string) {
     io::print("Hello " + name);
 }

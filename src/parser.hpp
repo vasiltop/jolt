@@ -32,8 +32,9 @@ public:
       Tokenizer tokenizer(canonical.filename(), std::move(*data));
 
       // TODO: Make this a compiler flag
-      tokenizer.print_tokens();
-      continue;
+#if false
+				tokenizer.print_tokens();
+#endif
 
       auto module_name = parse_module_name(tokenizer);
 
@@ -48,7 +49,7 @@ public:
         continue;
       }
 
-      modules_hir_[*module_name] = *hir_nodes;
+      modules_hir_[*module_name] = std::move(*hir_nodes);
     }
 
     if (errors.size()) {
@@ -69,14 +70,23 @@ public:
   auto hir(Tokenizer &tokenizer) -> std::expected<std::vector<Hir>, Error> {
     std::vector<Hir> nodes;
 
-    // TODO: Maybe we should create a peek instead so the first token is not
-    // consumed.
-    for (auto tok = tokenizer.consume(); tok.kind != TokenKind::Eof;
-         tok = tokenizer.consume()) {
-      if (tok.kind == TokenKind::Fn) {
+    while (tokenizer.peek().kind != TokenKind::Eof) {
+      auto next = tokenizer.peek();
+      if (next.kind == TokenKind::Fn) {
         auto fn = HirFnDef::try_parse(tokenizer);
         PROP_ERR(fn);
         nodes.emplace_back(std::move(*fn));
+      } else if (next.kind == TokenKind::Struct) {
+        auto struct_def = HirStruct::try_parse(tokenizer);
+        PROP_ERR(struct_def);
+        nodes.emplace_back(std::move(*struct_def));
+      } else if (next.kind == TokenKind::Enum) {
+        auto enum_def = HirEnum::try_parse(tokenizer);
+        PROP_ERR(enum_def);
+        nodes.emplace_back(std::move(*enum_def));
+      } else {
+        // Skip unhandled top-level tokens for now
+        tokenizer.consume();
       }
     }
 

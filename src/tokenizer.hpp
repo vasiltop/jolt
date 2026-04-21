@@ -55,6 +55,22 @@ public:
     }
   }
 
+  auto get_line_contents(size_t offset) const -> std::string {
+    size_t line_start = data_.rfind('\n', offset);
+    if (line_start == std::string::npos) {
+      line_start = 0;
+    } else {
+      line_start++; // skip the newline
+    }
+
+    size_t line_end = data_.find('\n', offset);
+    if (line_end == std::string::npos) {
+      line_end = data_.size();
+    }
+
+    return data_.substr(line_start, line_end - line_start);
+  }
+
   auto expect_token_and_pop(TokenKind kind) -> std::expected<Token, Error> {
     auto tok = consume();
 
@@ -62,10 +78,18 @@ public:
       auto found = token_kind_string[static_cast<size_t>(tok.kind)];
       auto expected = token_kind_string[static_cast<size_t>(kind)];
 
+      std::string line_content = get_line_contents(tok.pos.offset);
+      std::string pointer(tok.pos.col > 0 ? tok.pos.col - 1 : 0, ' ');
+      pointer += "^";
+
       return std::unexpected(Error{
-          .msg = std::format("{}:{}:{}: error: expected token {}, found {}.",
-                             get_filename(), tok.pos.line, tok.pos.col,
-                             expected, found)});
+          .msg =
+              std::format("{}:{}:{}: error: expected token '{}', found '{}'.\n"
+                          "    |\n"
+                          "{:4}| {}\n"
+                          "    | {}",
+                          get_filename(), tok.pos.line, tok.pos.col, expected,
+                          found, tok.pos.line, line_content, pointer)});
     }
 
     return tok;

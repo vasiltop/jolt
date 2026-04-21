@@ -59,6 +59,8 @@ enum class TokenKind {
   Let,
   While,
   For,
+  Struct,
+  Enum,
 };
 
 // Must match the order of TokenKind
@@ -107,25 +109,20 @@ static constexpr std::string_view token_kind_string[] = {"invalid",
                                                          "module",
                                                          "let",
                                                          "while",
-                                                         "for"};
+                                                         "for",
+                                                         "struct",
+                                                         "enum"};
 
 std::unordered_map<std::string_view, TokenKind> keywords{
-    {"fn", TokenKind::Fn},
-    {"ret", TokenKind::Ret},
-    {"module", TokenKind::Module},
-    {"let", TokenKind::Let},
-    {"while", TokenKind::While},
-    {"for", TokenKind::For},
-    {"if", TokenKind::If},
-    {"else", TokenKind::Else},
-    {"import", TokenKind::Import},
-    {"const", TokenKind::Const},
-    {"null", TokenKind::Null},
-    {"true", TokenKind::True},
-    {"false", TokenKind::False},
-    {"and", TokenKind::And},
-    {"or", TokenKind::Or},
-    {"not", TokenKind::Not},
+    {"fn", TokenKind::Fn},         {"ret", TokenKind::Ret},
+    {"module", TokenKind::Module}, {"let", TokenKind::Let},
+    {"while", TokenKind::While},   {"for", TokenKind::For},
+    {"if", TokenKind::If},         {"else", TokenKind::Else},
+    {"import", TokenKind::Import}, {"const", TokenKind::Const},
+    {"null", TokenKind::Null},     {"true", TokenKind::True},
+    {"false", TokenKind::False},   {"and", TokenKind::And},
+    {"or", TokenKind::Or},         {"not", TokenKind::Not},
+    {"struct", TokenKind::Struct}, {"enum", TokenKind::Enum},
 };
 
 struct Token {
@@ -133,3 +130,11 @@ struct Token {
   TokenKind kind;
   std::string text;
 };
+
+auto token_is_unary_op(const Token &tok) -> bool {
+  if (tok.kind == TokenKind::Mul || tok.kind == TokenKind::Ampersand ||
+      tok.kind == TokenKind::Not || tok.kind == TokenKind::Sub) {
+    return true;
+  }
+  return false;
+}
