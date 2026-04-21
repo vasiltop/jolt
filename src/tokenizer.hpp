@@ -121,12 +121,39 @@ private:
 
       t.text = ident_view;
 
-    } else if (std::isdigit(cur)) { // TODO: decimal numbers
+    } else if (std::isdigit(cur)) {
       t.kind = TokenKind::Integer;
+      bool has_dot = false;
 
-      for (auto o = peek_char(); o && std::isdigit(*o); o = peek_char()) {
+      for (auto o = peek_char(); o && (std::isdigit(*o) || *o == '.');
+           o = peek_char()) {
+        if (*o == '.') {
+          if (has_dot)
+            break; // second dot, end parsing number
+          has_dot = true;
+          t.kind = TokenKind::Real;
+        }
         next_char();
         count++;
+      }
+
+      t.text = std::string_view(first, count);
+
+    } else if (cur == '"') {
+      t.kind = TokenKind::String;
+      // Note: first currently points to the opening quote.
+      for (auto o = peek_char(); o && *o != '"'; o = peek_char()) {
+        next_char();
+        count++;
+      }
+
+      if (peek_char() == '"') {
+        next_char(); // consume closing quote
+        count++;
+      } else {
+        // ERROR: unclosed string literal, but we'll let parser catch invalid
+        // token for now
+        t.kind = TokenKind::Invalid;
       }
 
       t.text = std::string_view(first, count);
@@ -146,8 +173,87 @@ private:
       case '}':
         t.kind = TokenKind::BraceClose;
         break;
+      case '[':
+        t.kind = TokenKind::BracketOpen;
+        break;
+      case ']':
+        t.kind = TokenKind::BracketClose;
+        break;
       case ';':
         t.kind = TokenKind::Semicolon;
+        break;
+      case ',':
+        t.kind = TokenKind::Comma;
+        break;
+      case '.':
+        t.kind = TokenKind::Dot;
+        break;
+      case '&':
+        t.kind = TokenKind::Ampersand;
+        break;
+      case '|':
+        t.kind = TokenKind::VerticalBar;
+        break;
+      case '+':
+        t.kind = TokenKind::Add;
+        break;
+      case '-':
+        t.kind = TokenKind::Sub;
+        break;
+      case '*':
+        t.kind = TokenKind::Mul;
+        break;
+      case '/':
+        t.kind = TokenKind::Div;
+        break;
+      case '%':
+        t.kind = TokenKind::Mod;
+        break;
+      case '=':
+        if (peek_char() == '=') {
+          next_char();
+          t.kind = TokenKind::Equal;
+          t.text = "==";
+        } else {
+          t.kind = TokenKind::Assign;
+          t.text = "=";
+        }
+        break;
+      case '!':
+        if (peek_char() == '=') {
+          next_char();
+          t.kind = TokenKind::NotEqual;
+          t.text = "!=";
+        } else {
+          t.kind = TokenKind::Invalid;
+        }
+        break;
+      case ':':
+        if (peek_char() == '=') {
+          next_char();
+          t.kind = TokenKind::Assign;
+          t.text = ":=";
+        } else {
+          t.kind = TokenKind::Colon;
+        }
+        break;
+      case '<':
+        if (peek_char() == '=') {
+          next_char();
+          t.kind = TokenKind::LessThanEqual;
+          t.text = "<=";
+        } else {
+          t.kind = TokenKind::LessThan;
+        }
+        break;
+      case '>':
+        if (peek_char() == '=') {
+          next_char();
+          t.kind = TokenKind::GreaterThanEqual;
+          t.text = ">=";
+        } else {
+          t.kind = TokenKind::GreaterThan;
+        }
         break;
       }
     }

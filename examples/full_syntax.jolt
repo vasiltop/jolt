@@ -26,7 +26,7 @@ fn calculate_complex() f32 {
 
     if x < 5 {
         result = 0.0;
-    } else if (x = 10) and not false {
+    } else if (x == 10) and not false {
         result = 1.0;
     } else {
         result = result + 100.0;
