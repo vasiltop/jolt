@@ -3,10 +3,10 @@
 #include <filesystem>
 #include <iostream>
 #include <string>
-#include <variant>
 
 auto main(int argc, char **argv) -> int {
-  std::string filename = "./examples/test.jolt";
+  std::string filename = "./examples/full_syntax.jolt";
+  // std::string filename = "./examples/test.jolt";
 
   Parser parser{};
   auto errors = parser.parse_path(filename);

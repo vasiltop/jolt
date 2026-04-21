@@ -1,9 +1,6 @@
 module test;
 
-struct A {
-
-}
-
+// Test comment
 fn main() int {
-	ret 0;
+    ret 0;
 }

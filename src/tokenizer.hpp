@@ -1,15 +1,17 @@
 #pragma once
 
-#include "tokens.hpp"
-#include <optional>
-#include <expected>
-#include <string>
-#include <format>
 #include "errors.hpp"
+#include "tokens.hpp"
+#include <expected>
+#include <format>
+#include <iostream>
+#include <optional>
+#include <string>
 
 class Tokenizer {
 public:
-  Tokenizer(std::string filename, std::string data) : filename_(filename), data_(std::move(data)), pos_({1, 0, 0}) {}
+  Tokenizer(std::string filename, std::string data)
+      : filename_(filename), data_(std::move(data)), pos_({1, 0, 0}) {}
 
   auto eof() const -> bool { return pos_.offset >= data_.size(); }
 
@@ -39,14 +41,21 @@ public:
           pos_.line += 1;
           pos_.col = 0;
         }
+      } else if (*c == '/' && pos_.offset + 1 < data_.size() &&
+                 data_[pos_.offset + 1] == '/') {
+        while (auto cc = peek_char()) {
+          if (*cc == '\n') {
+            break;
+          }
+          next_char();
+        }
       } else {
         break;
       }
     }
   }
 
-  auto expect_token_and_pop(TokenKind kind)
-      -> std::expected<Token, Error> {
+  auto expect_token_and_pop(TokenKind kind) -> std::expected<Token, Error> {
     auto tok = consume();
 
     if (tok.kind != kind) {
@@ -55,14 +64,31 @@ public:
 
       return std::unexpected(Error{
           .msg = std::format("{}:{}:{}: error: expected token {}, found {}.",
-                             get_filename(), tok.pos.line,
-                             tok.pos.col, expected, found)});
+                             get_filename(), tok.pos.line, tok.pos.col,
+                             expected, found)});
     }
 
     return tok;
   }
 
+  auto peek() -> Token {
+    if (!peeked_token_) {
+      peeked_token_ = next_token_impl();
+    }
+    return *peeked_token_;
+  }
+
   auto consume() -> Token {
+    if (peeked_token_) {
+      Token t = *peeked_token_;
+      peeked_token_ = std::nullopt;
+      return t;
+    }
+    return next_token_impl();
+  }
+
+private:
+  auto next_token_impl() -> Token {
     skip_whitespace();
 
     auto start_pos = pos_;
@@ -131,7 +157,36 @@ public:
 
   std::string get_filename() const { return filename_; }
 
+public:
+  auto reset() -> void {
+    pos_ = {1, 0, 0};
+    peeked_token_ = std::nullopt;
+  }
+
+  auto print_tokens() -> void {
+    auto saved_pos = pos_;
+    auto saved_peeked = peeked_token_;
+
+    reset();
+
+    while (true) {
+      auto t = consume();
+      auto kind_str = token_kind_string[static_cast<size_t>(t.kind)];
+
+      std::cout << std::format("[{}:{}:{}] {} '{}'\n", filename_, t.pos.line,
+                               t.pos.col, kind_str, t.text);
+
+      if (t.kind == TokenKind::Eof || t.kind == TokenKind::Invalid) {
+        break;
+      }
+    }
+
+    pos_ = saved_pos;
+    peeked_token_ = saved_peeked;
+  }
+
 private:
+  std::optional<Token> peeked_token_;
   std::string filename_;
   std::string data_;
   Pos pos_;

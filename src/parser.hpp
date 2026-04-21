@@ -31,6 +31,10 @@ public:
 
       Tokenizer tokenizer(canonical.filename(), std::move(*data));
 
+      // TODO: Make this a compiler flag
+      tokenizer.print_tokens();
+      continue;
+
       auto module_name = parse_module_name(tokenizer);
 
       if (!module_name) {

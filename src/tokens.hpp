@@ -1,7 +1,7 @@
 #pragma once
 
-#include <unordered_map>
 #include <string>
+#include <unordered_map>
 
 struct Pos {
   int line;
@@ -43,7 +43,6 @@ enum class TokenKind {
   String,
 
   And,
-  Begin,
   Const,
   Else,
   False,
@@ -55,7 +54,7 @@ enum class TokenKind {
   Or,
   Fn,
   Ret,
-	Module,
+  Module,
   Let,
   While,
   For,
@@ -81,7 +80,7 @@ static constexpr std::string_view token_kind_string[] = {"invalid",
                                                          "}",
                                                          ":=",
                                                          "=",
-                                                         "<>",
+                                                         "!=",
                                                          "<",
                                                          ">",
                                                          "<=",
@@ -92,7 +91,6 @@ static constexpr std::string_view token_kind_string[] = {"invalid",
                                                          "real literal",
                                                          "string literal",
                                                          "and",
-                                                         "begin",
                                                          "const",
                                                          "else",
                                                          "false",
@@ -104,10 +102,11 @@ static constexpr std::string_view token_kind_string[] = {"invalid",
                                                          "or",
                                                          "fn",
                                                          "ret",
-																												 "module",
+                                                         "module",
                                                          "let",
                                                          "while",
                                                          "for"};
+
 std::unordered_map<std::string_view, TokenKind> keywords{
     {"fn", TokenKind::Fn},
     {"ret", TokenKind::Ret},

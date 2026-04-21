@@ -1,0 +1,84 @@
+module syntax_target;
+
+import std::io;
+
+const PI := 3.14159;
+let global_count: int = 0;
+
+fn add<T>(a: T, b: T) T {
+    ret a + b;
+}
+
+fn print_greeting(name: string) {
+    io::print("Hello " + name);
+}
+
+fn calculate_complex() f32 {
+    let x := 10;
+    let y: f32 = 20.5;
+    let is_awesome: bool = true; 
+    let name: string = "Jolt";
+    let empty_val := null;       
+
+    let numbers := [1, 2, 3, 4, 5];
+    
+    let result := (x * y) + PI - 2.0 / 5.0 % 2.0;
+
+    if x < 5 {
+        result = 0.0;
+    } else if (x = 10) and not false {
+        result = 1.0;
+    } else {
+        result = result + 100.0;
+    }
+
+    let i := 0;
+    while i < 10 {
+        i = i + 1;
+    }
+
+    for j := 0; j < 10; j := j + 1 {
+			io::print("%", j);
+    }
+
+    ret 0.0;
+}
+
+struct A<T> {
+	a: int;
+	b: T;
+};
+
+enum Food {
+	Banana,
+	Apple
+};
+
+fn main() int {
+    let sum := add(10, 20);
+    print_greeting("World");
+
+		let struct_decl := A<string>{
+			a: 5;
+			b: "Hello"
+		};
+
+		let food := Food.Banana;
+		
+		pointers();
+    ret 0;
+}
+
+fn pointers() {
+	let a := 5;
+	let ref := &a;
+	let ref2 := &a;
+
+	std::assert(ref == ref2);
+
+	*ref2 = 3;
+	std::assert(*ref == *ref2);
+	
+	let arr := [&ref, &ref2];
+	io::print("%", **arr[1]);
+}
