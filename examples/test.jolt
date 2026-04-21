@@ -1,6 +1,6 @@
 module test;
 
 // Test comment
-fn main() int {
-    ret 0;
+fn main() i32 {
+    ret 0 as i32;
 }

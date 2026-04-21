@@ -44,6 +44,7 @@ enum class TokenKind {
   String,
 
   And,
+  As,
   Const,
   Else,
   False,
@@ -95,6 +96,7 @@ static constexpr std::string_view token_kind_string[] = {"invalid",
                                                          "real literal",
                                                          "string literal",
                                                          "and",
+                                                         "as",
                                                          "const",
                                                          "else",
                                                          "false",
@@ -113,7 +115,7 @@ static constexpr std::string_view token_kind_string[] = {"invalid",
                                                          "struct",
                                                          "enum"};
 
-std::unordered_map<std::string_view, TokenKind> keywords{
+inline std::unordered_map<std::string_view, TokenKind> keywords{
     {"fn", TokenKind::Fn},         {"ret", TokenKind::Ret},
     {"module", TokenKind::Module}, {"let", TokenKind::Let},
     {"while", TokenKind::While},   {"for", TokenKind::For},
@@ -123,7 +125,7 @@ std::unordered_map<std::string_view, TokenKind> keywords{
     {"false", TokenKind::False},   {"and", TokenKind::And},
     {"or", TokenKind::Or},         {"not", TokenKind::Not},
     {"struct", TokenKind::Struct}, {"enum", TokenKind::Enum},
-};
+    {"as", TokenKind::As}};
 
 struct Token {
   Pos pos;
@@ -131,10 +133,38 @@ struct Token {
   std::string text;
 };
 
-auto token_is_unary_op(const Token &tok) -> bool {
+inline auto token_is_unary_op(const Token &tok) -> bool {
   if (tok.kind == TokenKind::Mul || tok.kind == TokenKind::Ampersand ||
       tok.kind == TokenKind::Not || tok.kind == TokenKind::Sub) {
     return true;
   }
   return false;
+}
+
+inline auto token_precedence(const Token &tok) -> int {
+  switch (tok.kind) {
+  case TokenKind::As:
+    return 6;
+  case TokenKind::Mul:
+  case TokenKind::Div:
+  case TokenKind::Mod:
+    return 5;
+  case TokenKind::Add:
+  case TokenKind::Sub:
+    return 4;
+  case TokenKind::LessThan:
+  case TokenKind::GreaterThan:
+  case TokenKind::LessThanEqual:
+  case TokenKind::GreaterThanEqual:
+    return 3;
+  case TokenKind::NotEqual:
+  case TokenKind::Equal:
+    return 2;
+  case TokenKind::And:
+    return 1;
+  case TokenKind::Or:
+    return 0;
+  default:
+    return -1;
+  }
 }

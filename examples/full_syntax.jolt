@@ -19,6 +19,7 @@ fn print_greeting(name: string) {
 
 fn calculate_complex() f32 {
     let x := 10;
+		let casted := x as u8;
     let y: f32 = 20.5;
     let is_awesome: bool = true; 
     let name: string = "Jolt";
@@ -53,11 +54,6 @@ struct A<T> {
 	b: T;
 };
 
-enum Food {
-	Banana,
-	Apple
-};
-
 fn main() int {
     let sum := add(10, 20);
     print_greeting("World");
@@ -67,8 +63,6 @@ fn main() int {
 			b: "Hello"
 		};
 
-		let food := Food.Banana;
-		
 		pointers();
     ret 0;
 }

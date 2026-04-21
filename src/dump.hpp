@@ -25,20 +25,174 @@ overloaded(Ts...) -> overloaded<Ts...>;
 
 inline void print_hir(const Hir& hir, int indent = 0);
 inline void print_hir(const HirStmt& stmt, int indent);
+inline void print_hir(const HirExpr& expr, int indent);
+
+inline void print_hir(const HirExprLiteral& literal, int indent) {
+    print_indent(indent);
+    std::cout << "Literal: " << literal.tok.text << " [" << type_to_string(literal.type) << "]\n";
+}
+
+inline void print_hir(const HirExprIdent& ident, int indent) {
+    print_indent(indent);
+    std::cout << "Ident: " << ident.tok.text << " [" << type_to_string(ident.type) << "]\n";
+}
+
+inline void print_hir(const HirExprBinary& binary, int indent) {
+    print_indent(indent);
+    std::cout << "BinaryOp: " << binary.op.text << " [" << type_to_string(binary.type) << "]\n";
+    print_hir(*binary.lhs, indent + 1);
+    print_hir(*binary.rhs, indent + 1);
+}
+
+inline void print_hir(const HirExprUnary& unary, int indent) {
+    print_indent(indent);
+    std::cout << "UnaryOp: " << unary.op.text << " [" << type_to_string(unary.type) << "]\n";
+    print_hir(*unary.expr, indent + 1);
+}
+
+inline void print_hir(const HirExprCall& call, int indent) {
+    print_indent(indent);
+    std::cout << "Call [" << type_to_string(call.type) << "]\n";
+    print_indent(indent + 1);
+    std::cout << "Callee:\n";
+    print_hir(*call.callee, indent + 2);
+    print_indent(indent + 1);
+    std::cout << "Args:\n";
+    for (const auto& arg : call.args) {
+        print_hir(arg, indent + 2);
+    }
+}
+
+inline void print_hir(const HirExprIndex& index, int indent) {
+    print_indent(indent);
+    std::cout << "Index [" << type_to_string(index.type) << "]\n";
+    print_indent(indent + 1);
+    std::cout << "Value:\n";
+    print_hir(*index.value, indent + 2);
+    print_indent(indent + 1);
+    std::cout << "IndexExpr:\n";
+    print_hir(*index.index, indent + 2);
+}
+
+inline void print_hir(const HirExprItem& item, int indent) {
+    std::visit([indent](auto&& arg) {
+        using T = std::decay_t<decltype(arg)>;
+        if constexpr (std::is_same_v<T, std::unique_ptr<HirExprBinary>>) {
+            print_hir(*arg, indent);
+        } else if constexpr (std::is_same_v<T, std::unique_ptr<HirExprUnary>>) {
+            print_hir(*arg, indent);
+        } else if constexpr (std::is_same_v<T, std::unique_ptr<HirExprCall>>) {
+            print_hir(*arg, indent);
+        } else if constexpr (std::is_same_v<T, std::unique_ptr<HirExprIndex>>) {
+            print_hir(*arg, indent);
+        } else {
+            print_hir(arg, indent);
+        }
+    }, item);
+}
+
+inline void print_hir(const HirExpr& expr, int indent) {
+    print_indent(indent);
+    std::cout << "Expr [" << type_to_string(expr.type) << "]\n";
+    print_hir(expr.item, indent + 1);
+}
 
 inline void print_hir(const HirReturn& ret, int indent) {
     print_indent(indent);
-    std::cout << "Return: [expr]" << " [" << type_to_string(ret.type) << "]\n";
+    std::cout << "Return [" << type_to_string(ret.type) << "]\n";
+    if (ret.expression) {
+        print_hir(*ret.expression, indent + 1);
+    }
+}
+
+inline void print_hir(const HirLet& let, int indent) {
+    print_indent(indent);
+    std::cout << "Let: " << let.name.text;
+    if (let.explicit_type) std::cout << ": " << let.explicit_type->text;
+    std::cout << " [" << type_to_string(let.type) << "]\n";
+    if (let.initializer) {
+        print_hir(*let.initializer, indent + 1);
+    }
+}
+
+inline void print_hir(const HirAssign& assign, int indent) {
+    print_indent(indent);
+    std::cout << "Assign [" << type_to_string(assign.type) << "]\n";
+    print_indent(indent + 1);
+    std::cout << "LValue:\n";
+    print_hir(assign.lvalue, indent + 2);
+    print_indent(indent + 1);
+    std::cout << "RValue:\n";
+    print_hir(assign.rvalue, indent + 2);
+}
+
+inline void print_hir(const HirExprStmt& expr_stmt, int indent) {
+    print_indent(indent);
+    std::cout << "ExprStmt [" << type_to_string(expr_stmt.type) << "]\n";
+    print_hir(expr_stmt.expr, indent + 1);
+}
+
+inline void print_hir(const HirBlock& block, int indent);
+
+inline void print_hir(const HirIf& if_stmt, int indent) {
+    print_indent(indent);
+    std::cout << "If [" << type_to_string(if_stmt.type) << "]\n";
+    print_indent(indent + 1);
+    std::cout << "Condition:\n";
+    print_hir(if_stmt.condition, indent + 2);
+    print_indent(indent + 1);
+    std::cout << "Then:\n";
+    print_hir(if_stmt.then_block, indent + 2);
+    if (if_stmt.else_block) {
+        print_indent(indent + 1);
+        std::cout << "Else:\n";
+        print_hir(*if_stmt.else_block, indent + 2);
+    }
+}
+
+inline void print_hir(const HirWhile& while_stmt, int indent) {
+    print_indent(indent);
+    std::cout << "While [" << type_to_string(while_stmt.type) << "]\n";
+    print_indent(indent + 1);
+    std::cout << "Condition:\n";
+    print_hir(while_stmt.condition, indent + 2);
+    print_indent(indent + 1);
+    std::cout << "Block:\n";
+    print_hir(while_stmt.block, indent + 2);
+}
+
+inline void print_hir(const HirFor& for_stmt, int indent) {
+    print_indent(indent);
+    std::cout << "For [" << type_to_string(for_stmt.type) << "]\n";
+    if (for_stmt.init) {
+        print_indent(indent + 1);
+        std::cout << "Init:\n";
+        print_hir(*for_stmt.init, indent + 2);
+    }
+    print_indent(indent + 1);
+    std::cout << "Condition:\n";
+    print_hir(for_stmt.condition, indent + 2);
+    if (for_stmt.update) {
+        print_indent(indent + 1);
+        std::cout << "Update:\n";
+        print_hir(*for_stmt.update, indent + 2);
+    }
+    print_indent(indent + 1);
+    std::cout << "Block:\n";
+    print_hir(for_stmt.block, indent + 2);
 }
 
 inline void print_hir(const HirStmtItem& item, int indent) {
     std::visit([indent](auto&& arg) { 
         using T = std::decay_t<decltype(arg)>;
-        if constexpr (std::is_same_v<T, HirReturn>) {
-            print_hir(arg, indent);
+        if constexpr (std::is_same_v<T, std::unique_ptr<HirIf>>) {
+            print_hir(*arg, indent);
+        } else if constexpr (std::is_same_v<T, std::unique_ptr<HirWhile>>) {
+            print_hir(*arg, indent);
+        } else if constexpr (std::is_same_v<T, std::unique_ptr<HirFor>>) {
+            print_hir(*arg, indent);
         } else {
-            print_indent(indent);
-            std::cout << "<other stmt>\n";
+            print_hir(arg, indent);
         }
     }, item);
 }
@@ -63,15 +217,47 @@ inline void print_hir(const HirFnDef& fn, int indent) {
     print_hir(fn.block, indent + 1);
 }
 
+inline void print_hir(const HirTypedIdent& typed_ident, int indent) {
+    print_indent(indent);
+    std::cout << "TypedIdent: " << typed_ident.name.text << ": " << typed_ident.type.text << " [" << type_to_string(typed_ident.HirBase::type) << "]\n";
+}
+
+inline void print_hir(const HirStruct& strct, int indent) {
+    print_indent(indent);
+    std::cout << "Struct: " << strct.name.text << " [" << type_to_string(strct.type) << "]\n";
+    for (const auto& field : strct.fields) {
+        print_hir(field, indent + 1);
+    }
+}
+
+inline void print_hir(const HirEnum& enm, int indent) {
+    print_indent(indent);
+    std::cout << "Enum: " << enm.name.text << " [" << type_to_string(enm.type) << "]\n";
+    for (const auto& variant : enm.variants) {
+        print_indent(indent + 1);
+        std::cout << "Variant: " << variant.text << "\n";
+    }
+}
+
+inline void print_hir(const HirImport& import_, int indent) {
+    print_indent(indent);
+    std::cout << "Import: ";
+    for (size_t i = 0; i < import_.path.size(); ++i) {
+        std::cout << import_.path[i].text;
+        if (i + 1 < import_.path.size()) std::cout << "::";
+    }
+    std::cout << " [" << type_to_string(import_.type) << "]\n";
+}
+
+inline void print_hir(const HirConst& cnst, int indent) {
+    print_indent(indent);
+    std::cout << "Const: " << cnst.name.text << " [" << type_to_string(cnst.type) << "]\n";
+    print_hir(cnst.initializer, indent + 1);
+}
+
 inline void print_hir(const Hir& hir, int indent) {
     std::visit([indent](auto&& arg) { 
-        using T = std::decay_t<decltype(arg)>;
-        if constexpr (std::is_same_v<T, HirFnDef>) {
-            print_hir(arg, indent);
-        } else {
-            print_indent(indent);
-            std::cout << "<other top-level item>\n";
-        }
+        print_hir(arg, indent);
     }, hir);
 }
 
