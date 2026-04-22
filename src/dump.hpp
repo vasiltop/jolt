@@ -74,6 +74,26 @@ inline void print_hir(const HirExprIndex& index, int indent) {
     print_hir(*index.index, indent + 2);
 }
 
+inline void print_hir(const HirExprMember& member, int indent) {
+    print_indent(indent);
+    std::cout << "Member [" << type_to_string(member.type) << "]\n";
+    print_indent(indent + 1);
+    std::cout << "Object:\n";
+    print_hir(*member.object, indent + 2);
+    print_indent(indent + 1);
+    std::cout << "Field: " << member.member.text << "\n";
+}
+
+inline void print_hir(const HirExprAs& as_expr, int indent) {
+    print_indent(indent);
+    std::cout << "As [" << type_to_string(as_expr.HirBase::type) << "]\n";
+    print_indent(indent + 1);
+    std::cout << "Expr:\n";
+    print_hir(*as_expr.expr, indent + 2);
+    print_indent(indent + 1);
+    std::cout << "Type: " << as_expr.type.text << "\n";
+}
+
 inline void print_hir(const HirExprItem& item, int indent) {
     std::visit([indent](auto&& arg) {
         using T = std::decay_t<decltype(arg)>;
@@ -84,6 +104,10 @@ inline void print_hir(const HirExprItem& item, int indent) {
         } else if constexpr (std::is_same_v<T, std::unique_ptr<HirExprCall>>) {
             print_hir(*arg, indent);
         } else if constexpr (std::is_same_v<T, std::unique_ptr<HirExprIndex>>) {
+            print_hir(*arg, indent);
+        } else if constexpr (std::is_same_v<T, std::unique_ptr<HirExprMember>>) {
+            print_hir(*arg, indent);
+        } else if constexpr (std::is_same_v<T, std::unique_ptr<HirExprAs>>) {
             print_hir(*arg, indent);
         } else {
             print_hir(arg, indent);

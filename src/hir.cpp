@@ -2,6 +2,58 @@
 #include "tokenizer.hpp"
 #include <memory>
 
+auto parse_postfix(Tokenizer &tokenizer) -> std::expected<HirExpr, Error> {
+  auto expr = parse_primary(tokenizer);
+  PROP_ERR(expr);
+
+  for (;;) {
+    auto next = tokenizer.peek();
+    if (next.kind == TokenKind::Dot) {
+      tokenizer.consume();
+      auto member = tokenizer.expect_token_and_pop(TokenKind::Ident);
+      PROP_ERR(member);
+      
+      auto access = std::make_unique<HirExprMember>();
+      access->object = std::make_unique<HirExpr>(std::move(*expr));
+      access->member = *member;
+      expr = HirExpr{.item = std::move(access)};
+    } 
+    else if (next.kind == TokenKind::BracketOpen) {
+      tokenizer.consume();
+      auto index_expr = HirExpr::try_parse(tokenizer);
+      PROP_ERR(index_expr);
+      tokenizer.expect_token_and_pop(TokenKind::BracketClose);
+      
+      auto access = std::make_unique<HirExprIndex>();
+      access->value = std::make_unique<HirExpr>(std::move(*expr));
+      access->index = std::make_unique<HirExpr>(std::move(*index_expr));
+      expr = HirExpr{.item = std::move(access)};
+    }
+    else if (next.kind == TokenKind::ParenOpen) {
+      tokenizer.consume();
+      auto call = std::make_unique<HirExprCall>();
+      call->callee = std::make_unique<HirExpr>(std::move(*expr));
+      
+      while (tokenizer.peek().kind != TokenKind::ParenClose && tokenizer.peek().kind != TokenKind::Eof) {
+        auto arg = HirExpr::try_parse(tokenizer);
+        PROP_ERR(arg);
+        call->args.push_back(std::move(*arg));
+        
+        if (tokenizer.peek().kind == TokenKind::Comma) {
+          tokenizer.consume();
+        }
+      }
+      tokenizer.expect_token_and_pop(TokenKind::ParenClose);
+      
+      expr = HirExpr{.item = std::move(call)};
+    }
+    else {
+      break;
+    }
+  }
+  return expr;
+}
+
 auto HirExprUnary::try_parse(Tokenizer &tokenizer)
     -> std::expected<HirExpr, Error> {
   auto tok = tokenizer.peek();
@@ -18,7 +70,7 @@ auto HirExprUnary::try_parse(Tokenizer &tokenizer)
     return HirExpr{.item = std::move(unary)};
   }
 
-  return parse_primary(tokenizer);
+  return parse_postfix(tokenizer);
 }
 
 auto parse_primary(Tokenizer &tokenizer) -> std::expected<HirExpr, Error> {
@@ -59,8 +111,14 @@ auto parse_primary(Tokenizer &tokenizer) -> std::expected<HirExpr, Error> {
       auto name = tokenizer.expect_token_and_pop(TokenKind::Ident);
       PROP_ERR(name);
       access_name = std::move(name->text);
+      
+      // We might need a HirExprPath or something similar for modules, 
+      // but for now let's just return a basic identifier that combined the name
+      // or just return the identifier since we're not fully fleshing out modules yet
+      tok.text = module_name + "::" + access_name;
     }
-
+    
+    return HirExpr{.item = HirExprIdent{.tok = tok}};
   } break;
   case TokenKind::BraceOpen:
     break;
@@ -87,14 +145,24 @@ auto HirExpr::try_parse(Tokenizer &tokenizer, int precedence)
 
     tokenizer.consume();
 
-    auto right = HirExpr::try_parse(tokenizer, cur_precedence + 1);
-    PROP_ERR(right);
+    if (tok.kind == TokenKind::As) {
+      auto type_tok = tokenizer.expect_token_and_pop(TokenKind::Ident);
+      PROP_ERR(type_tok);
 
-    auto binary = std::make_unique<HirExprBinary>();
-    binary->op = tok;
-    binary->lhs = std::make_unique<HirExpr>(HirExpr{{}, std::move(left)});
-    binary->rhs = std::make_unique<HirExpr>(std::move(*right));
-    left = std::move(binary);
+      auto as_expr = std::make_unique<HirExprAs>();
+      as_expr->expr = std::make_unique<HirExpr>(HirExpr{{}, std::move(left)});
+      as_expr->type = *type_tok;
+      left = std::move(as_expr);
+    } else {
+      auto right = HirExpr::try_parse(tokenizer, cur_precedence + 1);
+      PROP_ERR(right);
+
+      auto binary = std::make_unique<HirExprBinary>();
+      binary->op = tok;
+      binary->lhs = std::make_unique<HirExpr>(HirExpr{{}, std::move(left)});
+      binary->rhs = std::make_unique<HirExpr>(std::move(*right));
+      left = std::move(binary);
+    }
   }
 
   return HirExpr{.item = std::move(left)};

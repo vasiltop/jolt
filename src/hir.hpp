@@ -17,14 +17,6 @@ struct HirBase {
 struct HirExpr;
 struct HirExprUnary;
 
-struct HirExprMemberAccess : HirBase {};
-
-struct HirExprArrayAccess : HirBase {};
-
-struct HirExprVariableAccess : HirBase {};
-
-struct HirExprFuncCall : HirBase {};
-
 struct HirExprLiteral : HirBase {
   Token tok;
 };
@@ -55,7 +47,13 @@ struct HirExprCall : HirBase {
   std::vector<HirExpr> args;
 };
 
+struct HirExprAs : HirBase {
+  std::unique_ptr<HirExpr> expr;
+  Token type;
+};
+
 auto parse_primary(Tokenizer &tokenizer) -> std::expected<HirExpr, Error>;
+auto parse_postfix(Tokenizer &tokenizer) -> std::expected<HirExpr, Error>;
 
 struct HirExprUnary : HirBase {
   Token op;
@@ -67,7 +65,8 @@ struct HirExprUnary : HirBase {
 using HirExprItem =
     std::variant<HirExprLiteral, HirExprIdent, std::unique_ptr<HirExprBinary>,
                  std::unique_ptr<HirExprUnary>, std::unique_ptr<HirExprCall>,
-                 std::unique_ptr<HirExprIndex>>;
+                 std::unique_ptr<HirExprIndex>, std::unique_ptr<HirExprMember>,
+                 std::unique_ptr<HirExprAs>>;
 
 struct HirExpr : HirBase {
   HirExprItem item;

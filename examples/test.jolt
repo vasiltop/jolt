@@ -2,5 +2,5 @@ module test;
 
 // Test comment
 fn main() i32 {
-    ret 0 as i32;
+    ret a.field[i].subfield;
 }
