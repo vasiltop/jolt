@@ -30,7 +30,7 @@ auto Parser::parse_path(const std::filesystem::path &path)
       continue;
     }
 
-    auto hir_nodes = hir(tokenizer);
+    auto hir_nodes = hir(tokenizer, p);
     if (!hir_nodes) {
       errors.push_back(hir_nodes.error());
       continue;
@@ -44,7 +44,7 @@ auto Parser::parse_path(const std::filesystem::path &path)
       continue;
     }
 
-    modules_hir_[module_name] = std::move(*hir_nodes);
+    modules_hir_[module_name].items = std::move(*hir_nodes);
   }
 
   if (errors.size()) {
@@ -60,7 +60,7 @@ auto Parser::parse_path(const std::filesystem::path &path)
   return errors;
 }
 
-auto Parser::hir(Tokenizer &tokenizer)
+auto Parser::hir(Tokenizer &tokenizer, const std::filesystem::path& current_file_path)
     -> std::expected<std::vector<Hir>, Error> {
   std::vector<Hir> nodes;
 
@@ -78,6 +78,22 @@ auto Parser::hir(Tokenizer &tokenizer)
       auto enum_def = HirEnum::try_parse(tokenizer);
       PROP_ERR(enum_def);
       nodes.emplace_back(std::move(*enum_def));
+    } else if (next.kind == TokenKind::Import) {
+      auto import_def = HirImport::try_parse(tokenizer);
+      PROP_ERR(import_def);
+      
+      // Calculate path to imported module.
+      // E.g., `import math::geometry;` -> math/geometry.jolt
+      std::filesystem::path import_path = current_file_path.parent_path();
+      for (const auto& part : import_def->path) {
+          import_path /= part.text;
+      }
+      import_path += ".jolt";
+      
+      // Add the imported file to the queue to be parsed.
+      parse_queue_.push(import_path);
+      
+      nodes.emplace_back(std::move(*import_def));
     } else {
       // Skip unhandled top-level tokens for now
       tokenizer.consume();

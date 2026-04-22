@@ -286,9 +286,9 @@ inline void print_hir(const Hir& hir, int indent) {
 }
 
 inline void print_modules(const ModulesHir& modules) {
-    for (const auto& [name, hir_list] : modules) {
+    for (const auto& [name, scope] : modules) {
         std::cout << "Module: " << name << "\n";
-        for (const auto& node : hir_list) {
+        for (const auto& node : scope.items) {
             print_hir(node, 1);
         }
     }

@@ -1,0 +1,5 @@
+module other::submod;
+
+fn hello() i32 {
+    ret 5;
+}

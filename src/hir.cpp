@@ -360,3 +360,27 @@ auto HirEnum::try_parse(Tokenizer &tokenizer) -> std::expected<HirEnum, Error> {
 
   return HirEnum{.name = *name_tok, .variants = variants};
 }
+
+auto HirImport::try_parse(Tokenizer &tokenizer)
+    -> std::expected<HirImport, Error> {
+  tokenizer.expect_token_and_pop(TokenKind::Import);
+  
+  std::vector<Token> path;
+  
+  while (true) {
+    auto part = tokenizer.expect_token_and_pop(TokenKind::Ident);
+    PROP_ERR(part);
+    path.push_back(*part);
+    
+    if (tokenizer.peek().kind == TokenKind::Colon) {
+      tokenizer.consume();
+      auto second_colon = tokenizer.expect_token_and_pop(TokenKind::Colon);
+      PROP_ERR(second_colon);
+    } else {
+      break;
+    }
+  }
+  
+  tokenizer.expect_token_and_pop(TokenKind::Semicolon);
+  return HirImport{.path = std::move(path)};
+}

@@ -178,6 +178,8 @@ struct HirEnum : HirBase {
 
 struct HirImport : HirBase {
   std::vector<Token> path;
+
+  static auto try_parse(Tokenizer &tokenizer) -> std::expected<HirImport, Error>;
 };
 
 struct HirConst : HirBase {
@@ -186,4 +188,10 @@ struct HirConst : HirBase {
 };
 
 using Hir = std::variant<HirFnDef, HirStruct, HirEnum, HirImport, HirConst>;
-using ModulesHir = std::unordered_map<std::string, std::vector<Hir>>;
+
+struct ModuleScope {
+    std::vector<Hir> items;
+    std::unordered_map<std::string, std::unique_ptr<ModuleScope>> submodules;
+};
+
+using ModulesHir = std::unordered_map<std::string, ModuleScope>;
