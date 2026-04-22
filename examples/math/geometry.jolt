@@ -1,0 +1,5 @@
+module math::geometry;
+struct Vector {
+    x: i32;
+    y: i32;
+}

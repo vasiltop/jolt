@@ -1,0 +1,20 @@
+module test_types;
+
+import math::geometry;
+
+struct MyStruct {
+    field1: i32;
+    field2: *math::geometry::Vector;
+    field3: **i64;
+}
+
+enum TestEnum {
+	Field1,
+	Field2
+}
+
+fn compute(val: *math::geometry::Vector) *i32 {
+    let x: *i32 = null;
+    let y = x as *i64;
+    ret x;
+}

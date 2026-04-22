@@ -91,7 +91,7 @@ inline void print_hir(const HirExprAs& as_expr, int indent) {
     std::cout << "Expr:\n";
     print_hir(*as_expr.expr, indent + 2);
     print_indent(indent + 1);
-    std::cout << "Type: " << as_expr.type.text << "\n";
+    std::cout << "Type: " << as_expr.type.to_string() << "\n";
 }
 
 inline void print_hir(const HirExprItem& item, int indent) {
@@ -132,7 +132,7 @@ inline void print_hir(const HirReturn& ret, int indent) {
 inline void print_hir(const HirLet& let, int indent) {
     print_indent(indent);
     std::cout << "Let: " << let.name.text;
-    if (let.explicit_type) std::cout << ": " << let.explicit_type->text;
+    if (let.explicit_type) std::cout << ": " << let.explicit_type->to_string();
     std::cout << " [" << type_to_string(let.type) << "]\n";
     if (let.initializer) {
         print_hir(*let.initializer, indent + 1);
@@ -237,13 +237,13 @@ inline void print_hir(const HirBlock& block, int indent) {
 
 inline void print_hir(const HirFnDef& fn, int indent) {
     print_indent(indent);
-    std::cout << "FnDef: " << fn.name.text << "() -> " << (fn.return_type ? fn.return_type->text : "void") << " [" << type_to_string(fn.type) << "]\n";
+    std::cout << "FnDef: " << fn.name.text << "() -> " << (fn.return_type ? fn.return_type->to_string() : "void") << " [" << type_to_string(fn.type) << "]\n";
     print_hir(fn.block, indent + 1);
 }
 
 inline void print_hir(const HirTypedIdent& typed_ident, int indent) {
     print_indent(indent);
-    std::cout << "TypedIdent: " << typed_ident.name.text << ": " << typed_ident.type.text << " [" << type_to_string(typed_ident.HirBase::type) << "]\n";
+    std::cout << "TypedIdent: " << typed_ident.name.text << ": " << typed_ident.type.to_string() << " [" << type_to_string(typed_ident.HirBase::type) << "]\n";
 }
 
 inline void print_hir(const HirStruct& strct, int indent) {

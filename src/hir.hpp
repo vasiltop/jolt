@@ -14,6 +14,25 @@ struct HirBase {
   std::optional<Type> type;
 };
 
+struct HirType;
+
+struct HirTypePath {
+  std::vector<Token> path;
+};
+
+struct HirTypePtr {
+  std::unique_ptr<HirType> base;
+};
+
+using HirTypeItem = std::variant<HirTypePath, std::unique_ptr<HirTypePtr>>;
+
+struct HirType {
+  HirTypeItem item;
+
+  static auto try_parse(Tokenizer &tokenizer) -> std::expected<HirType, Error>;
+  std::string to_string() const;
+};
+
 struct HirExpr;
 struct HirExprUnary;
 
@@ -49,7 +68,7 @@ struct HirExprCall : HirBase {
 
 struct HirExprAs : HirBase {
   std::unique_ptr<HirExpr> expr;
-  Token type;
+  HirType type;
 };
 
 auto parse_primary(Tokenizer &tokenizer) -> std::expected<HirExpr, Error>;
@@ -85,7 +104,7 @@ struct HirReturn : HirBase {
 
 struct HirLet : HirBase {
   Token name;
-  std::optional<Token> explicit_type;
+  std::optional<HirType> explicit_type;
   std::optional<HirExpr> initializer;
 
   static auto try_parse(Tokenizer &tokenizer) -> std::expected<HirLet, Error>;
@@ -144,9 +163,9 @@ struct HirFor : HirBase {
 // Types & Signatures
 struct HirTypedIdent : HirBase {
   Token name;
-  Token type;
+  HirType type;
 
-  HirTypedIdent(Token name_, Token type_) : name(name_), type(type_) {};
+  HirTypedIdent(Token name_, HirType type_) : name(name_), type(std::move(type_)) {};
 };
 
 // Top-Level Items
@@ -154,7 +173,7 @@ struct HirFnDef : HirBase {
   Token name;
   std::vector<Token> generics;
   std::vector<HirTypedIdent> params;
-  std::optional<Token> return_type;
+  std::optional<HirType> return_type;
   HirBlock block;
 
   static auto try_parse(Tokenizer &tokenizer) -> std::expected<HirFnDef, Error>;
