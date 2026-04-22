@@ -164,6 +164,72 @@ auto Tokenizer::next_token_impl() -> Token {
 
     t.text = std::string_view(first, count);
 
+  } else if (cur == '\'') {
+    t.kind = TokenKind::Char;
+    bool good = true;
+
+    if (!peek_char()) {
+      good = false;
+    } else if (*peek_char() == '\'') {
+      next_char();
+      count++;
+      good = false;
+    } else if (*peek_char() == '\n' || *peek_char() == '\r') {
+      good = false;
+    } else if (*peek_char() == '\\') {
+      next_char();
+      count++;
+      auto e = peek_char();
+      if (!e)
+        good = false;
+      else {
+        switch (*e) {
+        case 'n':
+        case 't':
+        case 'r':
+        case '\\':
+        case '\'':
+        case '"':
+        case '0':
+          next_char();
+          count++;
+          break;
+        default:
+          good = false;
+          break;
+        }
+      }
+    } else {
+      next_char();
+      count++;
+    }
+
+    if (good) {
+      if (peek_char() == '\'') {
+        next_char();
+        count++;
+      } else {
+        good = false;
+      }
+    }
+
+    if (!good) {
+      t.kind = TokenKind::Invalid;
+      while (auto p = peek_char()) {
+        if (*p == '\n' || *p == '\r')
+          break;
+        if (*p == '\'') {
+          next_char();
+          count++;
+          break;
+        }
+        next_char();
+        count++;
+      }
+    }
+
+    t.text = std::string_view(first, count);
+
   } else {
     t.text = cur;
     switch (cur) {

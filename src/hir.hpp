@@ -246,6 +246,8 @@ struct HirEnum : HirBase {
 
 struct HirImport : HirBase {
   std::vector<Token> path;
+  /// Filled by the parser: `ModulesHir` key for the resolved `.jolt` file.
+  std::string target_module;
 
   static auto try_parse(Tokenizer &tokenizer)
       -> std::expected<HirImport, Error>;

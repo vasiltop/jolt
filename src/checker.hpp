@@ -22,13 +22,27 @@ struct Scope {
 
 class Checker {
 public:
-  void check_modules(ModulesHir &modules, std::vector<Error> &errors,
-                     const std::unordered_map<std::string, ModuleSource> &sources);
+  void
+  check_modules(ModulesHir &modules, std::vector<Error> &errors,
+                const std::unordered_map<std::string, ModuleSource> &sources);
 
 private:
   void add_error(std::vector<Error> &errors, Pos pos, std::string_view message);
+  void add_error(std::vector<Error> &errors, const std::string &module_id,
+                 Pos pos, std::string_view message);
+
+  static auto collect_import_edges(const ModulesHir &modules)
+      -> std::unordered_map<std::string, std::vector<std::string>>;
+  static auto find_import_pos(const ModulesHir &modules,
+                              const std::string &from_module,
+                              const std::string &to_module) -> Pos;
+  auto has_import_cycles(
+      const ModulesHir &modules,
+      const std::unordered_map<std::string, std::vector<std::string>> &edges,
+      std::vector<Error> &errors) -> bool;
 
   const std::unordered_map<std::string, ModuleSource> *sources_{nullptr};
+  std::unordered_map<std::string, Scope *> module_global_scope;
 
   void check(HirStmt &stmt, std::vector<Error> &errors, Scope &scope);
   void check(HirBlock &block, std::vector<Error> &errors, Scope &scope);
@@ -42,8 +56,7 @@ private:
   void check(HirWhile &while_stmt, std::vector<Error> &errors, Scope &scope);
   void check(HirFor &for_stmt, std::vector<Error> &errors, Scope &scope);
   void check(HirExpr &expr, std::vector<Error> &errors, Scope &scope);
-  void check(HirExprLiteral &literal, std::vector<Error> &errors,
-             Scope &scope);
+  void check(HirExprLiteral &literal, std::vector<Error> &errors, Scope &scope);
   void check(HirExprIdent &ident, std::vector<Error> &errors, Scope &scope);
   void check(HirExprPath &path, std::vector<Error> &errors, Scope &scope);
   void check(HirExprBinary &binary, std::vector<Error> &errors, Scope &scope);

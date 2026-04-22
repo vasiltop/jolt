@@ -170,6 +170,7 @@ auto parse_primary(Tokenizer &tokenizer) -> std::expected<HirExpr, Error> {
   switch (tok.kind) {
   case TokenKind::Integer:
   case TokenKind::String:
+  case TokenKind::Char:
   case TokenKind::Real:
   case TokenKind::Null:
   case TokenKind::True:

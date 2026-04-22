@@ -1,11 +1,107 @@
 #include "checker.hpp"
 #include "types.hpp"
 #include <format>
+#include <functional>
+#include <string>
 #include <type_traits>
 #include <variant>
 
 static auto type_from_primitive_kind(PrimitiveKind kind) -> Type {
   return Type{.data = PrimitiveType{.kind = kind}};
+}
+
+auto Checker::collect_import_edges(const ModulesHir &modules)
+    -> std::unordered_map<std::string, std::vector<std::string>> {
+  std::unordered_map<std::string, std::vector<std::string>> res;
+
+  for (auto &[name, hir] : modules) {
+    for (auto &node : hir) {
+      std::visit(
+          [&](auto &&arg) {
+            using T = std::decay_t<decltype(arg)>;
+            if constexpr (std::is_same_v<T, HirImport>) {
+              res[name].push_back(arg.target_module);
+            }
+          },
+          node);
+    }
+  }
+
+  return res;
+}
+
+auto Checker::find_import_pos(const ModulesHir &modules,
+                              const std::string &from_module,
+                              const std::string &to_module) -> Pos {
+  auto mit = modules.find(from_module);
+  if (mit == modules.end())
+    return Pos{1, 1, 0};
+  for (auto &node : mit->second) {
+    if (auto *imp = std::get_if<HirImport>(&node)) {
+      if (imp->target_module == to_module && !imp->path.empty())
+        return imp->path[0].pos;
+    }
+  }
+  return Pos{1, 1, 0};
+}
+
+auto Checker::has_import_cycles(
+    const ModulesHir &modules,
+    const std::unordered_map<std::string, std::vector<std::string>> &edges,
+    std::vector<Error> &errors) -> bool {
+  enum class State { NotStarted, InProgress, Done };
+  std::unordered_map<std::string, State> state;
+  std::vector<std::string> path;
+  bool found = false;
+
+  std::function<bool(const std::string &)> dfs =
+      [&](const std::string &id) -> bool {
+    auto &st = state[id];
+    if (st == State::InProgress) {
+      if (!found) {
+        std::string cycle;
+        for (size_t i = 0; i < path.size(); ++i) {
+          if (i)
+            cycle += " -> ";
+          cycle += path[i];
+        }
+        if (!path.empty())
+          cycle += " -> ";
+        cycle += id;
+
+        const std::string &from_module = path.empty() ? id : path.back();
+        Pos pos = find_import_pos(modules, from_module, id);
+        add_error(errors, from_module, pos,
+                  std::format("import cycle: {}", cycle));
+        found = true;
+      }
+      return true;
+    }
+    if (st == State::Done)
+      return false;
+
+    st = State::InProgress;
+    path.push_back(id);
+
+    auto it = edges.find(id);
+    if (it != edges.end()) {
+      for (const auto &to : it->second) {
+        if (dfs(to))
+          return true;
+      }
+    }
+
+    path.pop_back();
+    st = State::Done;
+    return false;
+  };
+
+  for (const auto &[id, _] : edges) {
+    if (state[id] == State::NotStarted && dfs(id))
+      return true;
+  }
+
+  return found;
 }
 
 void Checker::check(HirStmt &stmt, std::vector<Error> &errors, Scope &scope) {
@@ -90,6 +186,9 @@ void Checker::check(HirExprLiteral &literal, std::vector<Error> &errors,
   } break;
   case TokenKind::String: {
     literal.type = type_from_primitive_kind(PrimitiveKind::String);
+  } break;
+  case TokenKind::Char: {
+    literal.type = type_from_primitive_kind(PrimitiveKind::Char);
   } break;
   case TokenKind::Real: {
     literal.type = type_from_primitive_kind(PrimitiveKind::Real);
@@ -268,17 +367,21 @@ void Checker::check(HirImport &imp, std::vector<Error> &errors, Scope &scope) {
 
 void Checker::add_error(std::vector<Error> &errors, Pos pos,
                         std::string_view message) {
+  add_error(errors, current_module_, pos, message);
+}
+
+void Checker::add_error(std::vector<Error> &errors,
+                        const std::string &module_id, Pos pos,
+                        std::string_view message) {
   if (!sources_) {
-    errors.push_back(
-        Error{.msg = std::format("{}:{}:{}: error: {}", current_module_,
-                                 pos.line, pos.col, message)});
+    errors.push_back(Error{.msg = std::format("{}:{}:{}: error: {}", module_id,
+                                              pos.line, pos.col, message)});
     return;
   }
-  auto it = sources_->find(current_module_);
+  auto it = sources_->find(module_id);
   if (it == sources_->end()) {
-    errors.push_back(
-        Error{.msg = std::format("{}:{}:{}: error: {}", current_module_,
-                                 pos.line, pos.col, message)});
+    errors.push_back(Error{.msg = std::format("{}:{}:{}: error: {}", module_id,
+                                              pos.line, pos.col, message)});
     return;
   }
   errors.push_back(
@@ -289,9 +392,14 @@ void Checker::check_modules(
     ModulesHir &modules, std::vector<Error> &errors,
     const std::unordered_map<std::string, ModuleSource> &sources) {
   sources_ = &sources;
+  const auto edges = collect_import_edges(modules);
+  if (has_import_cycles(modules, edges, errors))
+    return;
+
   for (auto &[name, hir] : modules) {
     Scope scope{.parent = nullptr};
     current_module_ = name;
+    module_global_scope[name] = &scope;
 
     for (auto &item : hir) {
       std::visit([&](auto &&arg) { check(arg, errors, scope); }, item);

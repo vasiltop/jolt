@@ -112,8 +112,8 @@ auto Parser::parse_path(const std::filesystem::path &path) -> ve {
 
     modules_hir_[module_name] = std::move(*hir_nodes);
     module_sources_.insert_or_assign(
-        module_name, ModuleSource{.path = abs_file.string(),
-                                 .text = tokenizer.source()});
+        module_name,
+        ModuleSource{.path = abs_file.string(), .text = tokenizer.source()});
   }
 
   if (errors.size()) {
@@ -156,8 +156,22 @@ auto Parser::hir(Tokenizer &tokenizer,
       }
       import_path += ".jolt";
 
-      // Add the imported file to the queue to be parsed.
-      parse_queue_.push(import_path);
+      std::error_code canon_ec;
+      auto abs_import =
+          std::filesystem::weakly_canonical(import_path, canon_ec);
+      if (canon_ec || abs_import.empty())
+        abs_import = std::filesystem::absolute(import_path);
+
+      auto module_id = derive_module_id(abs_import);
+      import_def->target_module = module_id;
+      if (import_def->target_module.empty()) {
+        return std::unexpected(Error{
+            .msg = std::format("could not resolve module id for import `{}`",
+                               import_path.string())});
+      }
+
+      if (!modules_hir_.contains(module_id))
+        parse_queue_.push(import_path);
 
       nodes.emplace_back(std::move(*import_def));
     } else if (next.kind == TokenKind::Const) {

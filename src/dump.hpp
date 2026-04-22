@@ -335,6 +335,8 @@ inline void print_hir(const HirImport &import_, int indent) {
     if (i + 1 < import_.path.size())
       std::cout << "::";
   }
+  if (!import_.target_module.empty())
+    std::cout << " -> " << import_.target_module;
   std::cout << " [" << type_to_string(import_.type) << "]\n";
 }
 

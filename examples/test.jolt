@@ -1,8 +1,5 @@
-import other::submod;
+import test2;
 
-fn main() i32 {
-	0;
-	null;
-	"Hello world";
-	3123.3123;
+fn main() other::submod::Type {
+	test();
 }
