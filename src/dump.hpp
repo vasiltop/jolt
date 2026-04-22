@@ -67,6 +67,16 @@ inline void print_hir(const HirExprPath &path_expr, int indent) {
     if (i + 1 < path_expr.segments.size())
       std::cout << "::";
   }
+  if (path_expr.generic_args) {
+    std::cout << "<";
+    for (size_t i = 0; i < path_expr.generic_args->size(); ++i) {
+      if (i) {
+        std::cout << ", ";
+      }
+      std::cout << (*path_expr.generic_args)[i]->to_string();
+    }
+    std::cout << ">";
+  }
   std::cout << " [" << type_to_string(path_expr.type) << "]\n";
 }
 
@@ -352,19 +362,6 @@ inline void print_hir(const HirImport &import_, int indent) {
       std::cout << "::";
   }
   std::cout << " [" << type_to_string(import_.type) << "]\n";
-}
-
-inline void print_hir(const HirModuleLet &ml, int indent) {
-  print_indent(indent);
-  std::cout << "Module let: " << ml.name.text << " ["
-            << type_to_string(ml.type) << "]\n";
-  if (ml.explicit_type) {
-    print_indent(indent + 1);
-    std::cout << "Type: " << ml.explicit_type->to_string() << "\n";
-  }
-  if (ml.initializer) {
-    print_hir(*ml.initializer, indent + 1);
-  }
 }
 
 inline void print_hir(const Hir &hir, int indent) {

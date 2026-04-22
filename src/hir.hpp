@@ -60,6 +60,8 @@ struct HirExprIndex : HirBase {
 // Stores any name lookup
 struct HirExprPath : HirBase {
   std::vector<Token> segments;
+  /// Set for `f<i32>(...)` and similar; struct literals use `HirType` on `HirExprStruct`.
+  std::optional<std::vector<std::shared_ptr<HirType>>> generic_args;
   bool is_local() const { return segments.size() == 1; }
   std::string primary_name() const { return segments[0].text; }
 };
@@ -252,21 +254,11 @@ struct HirImport : HirBase {
       -> std::expected<HirImport, Error>;
 };
 
-struct HirModuleLet : HirBase {
-  Token name;
-  std::optional<HirType> explicit_type;
-  std::optional<HirExpr> initializer;
-
-  static auto try_parse(Tokenizer &tokenizer)
-      -> std::expected<HirModuleLet, Error>;
-};
-
 using Hir = std::variant<HirFnDef, HirStruct, HirEnum, HirImport, HirConst,
-                         HirModuleLet>;
+                         HirLet>;
 
 struct ModuleScope {
   std::vector<Hir> items;
-  std::unordered_map<std::string, std::unique_ptr<ModuleScope>> submodules;
 };
 
 using ModulesHir = std::unordered_map<std::string, ModuleScope>;

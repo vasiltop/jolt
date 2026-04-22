@@ -193,8 +193,8 @@ auto parse_primary(Tokenizer &tokenizer) -> std::expected<HirExpr, Error> {
       if (tokenizer.peek().kind != TokenKind::Colon) {
         return std::unexpected(tokenizer.make_error(
             tokenizer.peek().pos,
-            "a single `:` is not valid; use `::` for paths, or for generics "
-            "use e.g. `A<T>{ ... }`"));
+            "a single `:` is not valid; use `::` for paths, or for generics use "
+            "e.g. `A<T>(...)` or `A<T>{ ... }`"));
       }
       tokenizer.consume();
       auto next_ident = tokenizer.expect_token_and_pop(TokenKind::Ident);
@@ -204,20 +204,27 @@ auto parse_primary(Tokenizer &tokenizer) -> std::expected<HirExpr, Error> {
       type_path.push_back(*next_ident);
     }
 
-    // `A<T>{ ... }` or `a::A<T>{ ... }`: try `<T>` as type args only if followed by
-    // `{`; otherwise backtrack and parse `a < b` as comparison, etc.
-    std::optional<std::vector<std::shared_ptr<HirType>>> struct_generics;
+    // `A<T>(...)`, `A<T>{ ... }`, `a::A<T>(...)`: only treat `<T>` as type args when
+    // the token after `>` is `(` (call) or `{` (struct); otherwise backtrack and let
+    // `a < b` be comparison.
+    std::optional<std::vector<std::shared_ptr<HirType>>> type_args;
     if (tokenizer.peek().kind == TokenKind::LessThan) {
       const auto cp = tokenizer.checkpoint();
       if (auto args = parse_type_argument_list(tokenizer); args) {
-        if (tokenizer.peek().kind == TokenKind::BraceOpen) {
-          struct_generics = std::make_optional(std::move(*args));
+        const auto next = tokenizer.peek().kind;
+        if (next == TokenKind::BraceOpen || next == TokenKind::ParenOpen) {
+          type_args = std::make_optional(std::move(*args));
         } else {
           tokenizer.restore(cp);
         }
       } else {
         tokenizer.restore(cp);
       }
+    }
+
+    if (type_args && tokenizer.peek().kind == TokenKind::ParenOpen) {
+      return HirExpr{.item = HirExprPath{.segments = std::move(type_path),
+                                        .generic_args = std::move(type_args)}};
     }
 
     // Struct initialization: `A {`, `A<T> {`, `a::A<T> {`, …
@@ -252,7 +259,7 @@ auto parse_primary(Tokenizer &tokenizer) -> std::expected<HirExpr, Error> {
       auto struct_expr = std::make_unique<HirExprStruct>();
       struct_expr->type = HirType{
           .item = HirTypePath{.path = std::move(type_path),
-                              .generic_args = std::move(struct_generics)}};
+                              .generic_args = std::move(type_args)}};
       struct_expr->fields = std::move(fields);
       return HirExpr{.item = std::move(struct_expr)};
     }
@@ -716,28 +723,3 @@ auto HirConst::try_parse(Tokenizer &tokenizer) -> std::expected<HirConst, Error>
                   .initializer = std::move(*init)};
 }
 
-auto HirModuleLet::try_parse(Tokenizer &tokenizer)
-    -> std::expected<HirModuleLet, Error> {
-  tokenizer.expect_token_and_pop(TokenKind::Let);
-  auto name = tokenizer.expect_token_and_pop(TokenKind::Ident);
-  PROP_ERR(name);
-  std::optional<HirType> explicit_type;
-  if (tokenizer.peek().kind == TokenKind::Colon) {
-    tokenizer.consume();
-    auto type_tok = HirType::try_parse(tokenizer);
-    PROP_ERR(type_tok);
-    explicit_type = std::move(*type_tok);
-  }
-  std::optional<HirExpr> initializer;
-  if (tokenizer.peek().kind == TokenKind::Assign) {
-    tokenizer.consume();
-    auto expr = HirExpr::try_parse(tokenizer);
-    PROP_ERR(expr);
-    initializer = std::move(*expr);
-  }
-  auto semicolon = tokenizer.expect_token_and_pop(TokenKind::Semicolon);
-  PROP_ERR(semicolon);
-  return HirModuleLet{.name = *name,
-                      .explicit_type = std::move(explicit_type),
-                      .initializer = std::move(initializer)};
-}

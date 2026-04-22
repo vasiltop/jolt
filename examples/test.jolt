@@ -1,6 +1,3 @@
-import other::submod;
-
-// Test comment
 fn main() i32 {
-	let a = math::pi;
+	ret func<i32>(2);
 }

@@ -12,7 +12,7 @@
 
 class Parser {
 public:
-  auto parse_path(const std::filesystem::path &path) -> std::vector<Error>;
+  auto parse_path(const std::filesystem::path &path) -> ve;
   const ModulesHir &get_modules() const { return modules_hir_; }
   auto hir(Tokenizer &tokenizer, const std::filesystem::path& current_file_path) -> std::expected<std::vector<Hir>, Error>;
 

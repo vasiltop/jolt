@@ -51,7 +51,7 @@ auto Parser::derive_module_id(const std::filesystem::path &abs) const
 }
 
 auto Parser::parse_path(const std::filesystem::path &path)
-    -> std::vector<Error> {
+    -> ve {
   std::error_code ec0;
   const auto entry = std::filesystem::weakly_canonical(path, ec0);
   if (ec0) {
@@ -60,7 +60,7 @@ auto Parser::parse_path(const std::filesystem::path &path)
                             path.string(), ec0.message())}};
   }
   parse_queue_.push(entry);
-  std::vector<Error> errors;
+  ve errors;
 
   while (!parse_queue_.empty()) {
     auto p = parse_queue_.front();
@@ -121,11 +121,7 @@ auto Parser::parse_path(const std::filesystem::path &path)
   }
 
   Checker checker;
-  auto success = checker.check_modules(modules_hir_);
-  if (!success.has_value()) {
-    // TODO: Propagate these errors.
-  }
-
+  checker.check_modules(modules_hir_, errors);
   return errors;
 }
 
@@ -168,9 +164,9 @@ auto Parser::hir(Tokenizer &tokenizer, const std::filesystem::path& current_file
       PROP_ERR(cnst);
       nodes.emplace_back(std::move(*cnst));
     } else if (next.kind == TokenKind::Let) {
-      auto module_let = HirModuleLet::try_parse(tokenizer);
-      PROP_ERR(module_let);
-      nodes.emplace_back(std::move(*module_let));
+      auto let = HirLet::try_parse(tokenizer);
+      PROP_ERR(let);
+      nodes.emplace_back(std::move(*let));
     } else {
       auto t = tokenizer.peek();
       return std::unexpected(tokenizer.make_error(

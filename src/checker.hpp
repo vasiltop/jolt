@@ -2,12 +2,17 @@
 
 #include "errors.hpp"
 #include "hir.hpp"
-#include "types.hpp"
-#include <expected>
-#include <variant>
+#include <vector>
 
-// TODO: Handle multiple errors at once
 class Checker {
 public:
-  auto check_modules(ModulesHir &modules) -> std::expected<void, Error>;
+  void check_modules(ModulesHir &modules, std::vector<Error> &errors);
+
+private:
+  void check(HirFnDef &fn, std::vector<Error> &errors);
+  void check(HirStruct &strct, std::vector<Error> &errors);
+  void check(HirEnum &enm, std::vector<Error> &errors);
+  void check(HirImport &imp, std::vector<Error> &errors);
+  void check(HirConst &cnst, std::vector<Error> &errors);
+  void check(HirLet &let, std::vector<Error> &errors);
 };
