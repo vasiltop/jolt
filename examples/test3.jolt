@@ -1,0 +1,4 @@
+module test;
+fn main() i32 {
+    let b: i32;
+}

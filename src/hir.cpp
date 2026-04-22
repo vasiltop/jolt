@@ -250,15 +250,15 @@ auto HirLet::try_parse(Tokenizer &tokenizer) -> std::expected<HirLet, Error> {
 
   std::optional<HirExpr> initializer;
   auto assign_tok = tokenizer.peek();
-  if (assign_tok.kind == TokenKind::Assign ||
-      assign_tok.kind == TokenKind::Equal) {
+  if (assign_tok.kind == TokenKind::Assign) {
     tokenizer.consume();
     auto expr = HirExpr::try_parse(tokenizer);
     PROP_ERR(expr);
     initializer = std::move(*expr);
   }
 
-  tokenizer.expect_token_and_pop(TokenKind::Semicolon);
+  auto semicolon = tokenizer.expect_token_and_pop(TokenKind::Semicolon);
+  PROP_ERR(semicolon);
 
   return HirLet{.name = *name,
                 .explicit_type = std::move(explicit_type),
@@ -275,11 +275,125 @@ auto HirStmt::try_parse(Tokenizer &tokenizer) -> std::expected<HirStmt, Error> {
     auto let = HirLet::try_parse(tokenizer);
     PROP_ERR(let);
     return HirStmt{.item = std::move(*let)};
+  } else if (next.kind == TokenKind::If) {
+    auto if_stmt = HirIf::try_parse(tokenizer);
+    PROP_ERR(if_stmt);
+    return HirStmt{.item = std::move(*if_stmt)};
+  } else if (next.kind == TokenKind::While) {
+    auto while_stmt = HirWhile::try_parse(tokenizer);
+    PROP_ERR(while_stmt);
+    return HirStmt{.item = std::move(*while_stmt)};
+  } else if (next.kind == TokenKind::For) {
+    auto for_stmt = HirFor::try_parse(tokenizer);
+    PROP_ERR(for_stmt);
+    return HirStmt{.item = std::move(*for_stmt)};
   }
+
   auto expr = HirExpr::try_parse(tokenizer);
   PROP_ERR(expr);
+
+  if (tokenizer.peek().kind == TokenKind::Assign) {
+    tokenizer.consume();
+    auto rhs = HirExpr::try_parse(tokenizer);
+    PROP_ERR(rhs);
+    tokenizer.expect_token_and_pop(TokenKind::Semicolon);
+    return HirStmt{.item = HirAssign{.lvalue = std::move(*expr),
+                                     .rvalue = std::move(*rhs)}};
+  }
+
   tokenizer.expect_token_and_pop(TokenKind::Semicolon);
   return HirStmt{.item = HirExprStmt{.expr = std::move(*expr)}};
+}
+
+auto HirIf::try_parse(Tokenizer &tokenizer)
+    -> std::expected<std::unique_ptr<HirIf>, Error> {
+  tokenizer.expect_token_and_pop(TokenKind::If);
+
+  auto cond = HirExpr::try_parse(tokenizer);
+  PROP_ERR(cond);
+
+  auto then_block = HirBlock::try_parse(tokenizer);
+  PROP_ERR(then_block);
+
+  std::optional<HirBlock> else_block;
+  if (tokenizer.peek().kind == TokenKind::Else) {
+    tokenizer.consume();
+    if (tokenizer.peek().kind == TokenKind::If) {
+      // Handle `else if` by wrapping it in a block manually
+      auto elif_stmt = HirIf::try_parse(tokenizer);
+      PROP_ERR(elif_stmt);
+
+      HirBlock blk;
+      blk.stmts.push_back(HirStmt{.item = std::move(*elif_stmt)});
+      else_block = std::move(blk);
+    } else {
+      auto eb = HirBlock::try_parse(tokenizer);
+      PROP_ERR(eb);
+      else_block = std::move(*eb);
+    }
+  }
+
+  auto stmt = std::make_unique<HirIf>();
+  stmt->condition = std::move(*cond);
+  stmt->then_block = std::move(*then_block);
+  stmt->else_block = std::move(else_block);
+
+  return stmt;
+}
+
+auto HirWhile::try_parse(Tokenizer &tokenizer)
+    -> std::expected<std::unique_ptr<HirWhile>, Error> {
+  tokenizer.expect_token_and_pop(TokenKind::While);
+
+  auto cond = HirExpr::try_parse(tokenizer);
+  PROP_ERR(cond);
+
+  auto block = HirBlock::try_parse(tokenizer);
+  PROP_ERR(block);
+
+  auto stmt = std::make_unique<HirWhile>();
+  stmt->condition = std::move(*cond);
+  stmt->block = std::move(*block);
+
+  return stmt;
+}
+
+auto HirFor::try_parse(Tokenizer &tokenizer)
+    -> std::expected<std::unique_ptr<HirFor>, Error> {
+  tokenizer.expect_token_and_pop(TokenKind::For);
+
+  auto init = HirStmt::try_parse(tokenizer);
+  PROP_ERR(init);
+
+  auto cond = HirExpr::try_parse(tokenizer);
+  PROP_ERR(cond);
+
+  tokenizer.expect_token_and_pop(TokenKind::Semicolon);
+
+  auto update_lhs = HirExpr::try_parse(tokenizer);
+  PROP_ERR(update_lhs);
+
+  HirStmt update_stmt;
+  if (tokenizer.peek().kind == TokenKind::Assign) {
+    tokenizer.consume();
+    auto rhs = HirExpr::try_parse(tokenizer);
+    PROP_ERR(rhs);
+    update_stmt = HirStmt{.item = HirAssign{.lvalue = std::move(*update_lhs),
+                                            .rvalue = std::move(*rhs)}};
+  } else {
+    update_stmt = HirStmt{.item = HirExprStmt{.expr = std::move(*update_lhs)}};
+  }
+
+  auto block = HirBlock::try_parse(tokenizer);
+  PROP_ERR(block);
+
+  auto stmt = std::make_unique<HirFor>();
+  stmt->init = std::make_unique<HirStmt>(std::move(*init));
+  stmt->condition = std::move(*cond);
+  stmt->update = std::make_unique<HirStmt>(std::move(update_stmt));
+  stmt->block = std::move(*block);
+
+  return stmt;
 }
 
 auto HirBlock::try_parse(Tokenizer &tokenizer)

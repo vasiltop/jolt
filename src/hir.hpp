@@ -146,11 +146,15 @@ struct HirIf : HirBase {
   HirExpr condition;
   HirBlock then_block;
   std::optional<HirBlock> else_block;
+
+  static auto try_parse(Tokenizer &tokenizer) -> std::expected<std::unique_ptr<HirIf>, Error>;
 };
 
 struct HirWhile : HirBase {
   HirExpr condition;
   HirBlock block;
+
+  static auto try_parse(Tokenizer &tokenizer) -> std::expected<std::unique_ptr<HirWhile>, Error>;
 };
 
 struct HirFor : HirBase {
@@ -158,6 +162,8 @@ struct HirFor : HirBase {
   HirExpr condition;
   std::unique_ptr<HirStmt> update;
   HirBlock block;
+
+  static auto try_parse(Tokenizer &tokenizer) -> std::expected<std::unique_ptr<HirFor>, Error>;
 };
 
 // Types & Signatures

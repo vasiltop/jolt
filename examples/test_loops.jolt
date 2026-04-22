@@ -1,0 +1,24 @@
+module test_loops;
+
+fn compute() i32 {
+    let i = 0;
+    while i < 10 {
+        i = i + 1;
+    }
+
+    if i == 10 {
+        ret 1;
+    } else if i > 10 {
+        ret 2;
+		} else if i > 30 {
+				ret 8;
+    } else {
+        ret 0;
+    }
+
+    for let j = 0; j < 5; j = j + 1 {
+        i = i + j;
+    }
+    
+    ret i;
+}

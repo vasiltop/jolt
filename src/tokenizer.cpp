@@ -264,13 +264,7 @@ auto Tokenizer::next_token_impl() -> Token {
       }
       break;
     case ':':
-      if (peek_char() == '=') {
-        next_char();
-        t.kind = TokenKind::Assign;
-        t.text = ":=";
-      } else {
-        t.kind = TokenKind::Colon;
-      }
+      t.kind = TokenKind::Colon;
       break;
     case '<':
       if (peek_char() == '=') {

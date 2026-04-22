@@ -1,0 +1,7 @@
+module test;
+fn main() i32 {
+    let a = 5;
+    a = 10;
+    a == 10;
+    a = 10;
+}

@@ -2,5 +2,8 @@ module test;
 
 // Test comment
 fn main() i32 {
-    ret a.field[i].subfield;
+	let a = 5;
+	a = 10;
+
+	ret a;
 }
