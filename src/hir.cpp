@@ -175,7 +175,7 @@ auto parse_primary(Tokenizer &tokenizer) -> std::expected<HirExpr, Error> {
   case TokenKind::True:
   case TokenKind::False: {
     HirExprLiteral lit{.tok = tok};
-    return HirExpr{.item = lit};
+    return HirExpr{.item = std::move(lit)};
   } break;
   case TokenKind::ParenOpen: {
     auto expr = HirExpr::try_parse(tokenizer);
@@ -265,7 +265,7 @@ auto parse_primary(Tokenizer &tokenizer) -> std::expected<HirExpr, Error> {
     }
 
     auto path_expr = HirExprPath{.segments = std::move(type_path)};
-    return HirExpr{.item = path_expr};
+    return HirExpr{.item = std::move(path_expr)};
   } break;
   case TokenKind::BracketOpen: {
     std::vector<HirExpr> elements;
@@ -375,8 +375,9 @@ auto HirContinue::try_parse(Tokenizer &tokenizer)
   return HirContinue{};
 }
 
-auto HirLet::try_parse(Tokenizer &tokenizer) -> std::expected<HirLet, Error> {
-  tokenizer.expect_token_and_pop(TokenKind::Let);
+auto HirLet::try_parse(Tokenizer &tokenizer, bool is_const)
+    -> std::expected<HirLet, Error> {
+  tokenizer.expect_token_and_pop(is_const ? TokenKind::Const : TokenKind::Let);
   auto name = tokenizer.expect_token_and_pop(TokenKind::Ident);
   PROP_ERR(name);
 
@@ -389,8 +390,12 @@ auto HirLet::try_parse(Tokenizer &tokenizer) -> std::expected<HirLet, Error> {
   }
 
   std::optional<HirExpr> initializer;
-  auto assign_tok = tokenizer.peek();
-  if (assign_tok.kind == TokenKind::Assign) {
+  if (is_const) {
+    tokenizer.expect_token_and_pop(TokenKind::Assign);
+    auto expr = HirExpr::try_parse(tokenizer);
+    PROP_ERR(expr);
+    initializer = std::move(*expr);
+  } else if (tokenizer.peek().kind == TokenKind::Assign) {
     tokenizer.consume();
     auto expr = HirExpr::try_parse(tokenizer);
     PROP_ERR(expr);
@@ -400,7 +405,8 @@ auto HirLet::try_parse(Tokenizer &tokenizer) -> std::expected<HirLet, Error> {
   auto semicolon = tokenizer.expect_token_and_pop(TokenKind::Semicolon);
   PROP_ERR(semicolon);
 
-  return HirLet{.name = *name,
+  return HirLet{.is_const = is_const,
+                .name = *name,
                 .explicit_type = std::move(explicit_type),
                 .initializer = std::move(initializer)};
 }
@@ -420,11 +426,11 @@ auto HirStmt::try_parse(Tokenizer &tokenizer) -> std::expected<HirStmt, Error> {
     PROP_ERR(cont);
     return HirStmt{.item = std::move(*cont)};
   } else if (next.kind == TokenKind::Let) {
-    auto let = HirLet::try_parse(tokenizer);
+    auto let = HirLet::try_parse(tokenizer, false);
     PROP_ERR(let);
     return HirStmt{.item = std::move(*let)};
   } else if (next.kind == TokenKind::Const) {
-    auto cnst = HirConst::try_parse(tokenizer);
+    auto cnst = HirLet::try_parse(tokenizer, true);
     PROP_ERR(cnst);
     return HirStmt{.item = std::move(*cnst)};
   } else if (next.kind == TokenKind::If) {
@@ -702,24 +708,3 @@ auto HirImport::try_parse(Tokenizer &tokenizer)
   tokenizer.expect_token_and_pop(TokenKind::Semicolon);
   return HirImport{.path = std::move(path)};
 }
-
-auto HirConst::try_parse(Tokenizer &tokenizer) -> std::expected<HirConst, Error> {
-  tokenizer.expect_token_and_pop(TokenKind::Const);
-  auto name = tokenizer.expect_token_and_pop(TokenKind::Ident);
-  PROP_ERR(name);
-  std::optional<HirType> explicit_type;
-  if (tokenizer.peek().kind == TokenKind::Colon) {
-    tokenizer.consume();
-    auto type_tok = HirType::try_parse(tokenizer);
-    PROP_ERR(type_tok);
-    explicit_type = std::move(*type_tok);
-  }
-  tokenizer.expect_token_and_pop(TokenKind::Assign);
-  auto init = HirExpr::try_parse(tokenizer);
-  PROP_ERR(init);
-  tokenizer.expect_token_and_pop(TokenKind::Semicolon);
-  return HirConst{.name = *name,
-                  .explicit_type = std::move(explicit_type),
-                  .initializer = std::move(*init)};
-}
-

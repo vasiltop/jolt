@@ -29,6 +29,7 @@ public:
   auto peek() -> Token;
   auto consume() -> Token;
   const std::string &get_filename() const { return filename_; }
+  const std::string &source() const { return data_; }
 
   auto checkpoint() const -> Checkpoint;
   auto restore(Checkpoint c) -> void;

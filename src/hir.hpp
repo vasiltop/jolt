@@ -18,7 +18,7 @@ struct HirType;
 
 struct HirTypePath {
   std::vector<Token> path;
-  /// if set, the type is `Path<T, U, …>` (`shared_ptr` so `HirType` can be copied)
+  /// if set, the type is `Path<T, U, ...>`
   std::optional<std::vector<std::shared_ptr<HirType>>> generic_args;
 };
 
@@ -60,7 +60,8 @@ struct HirExprIndex : HirBase {
 // Stores any name lookup
 struct HirExprPath : HirBase {
   std::vector<Token> segments;
-  /// Set for `f<i32>(...)` and similar; struct literals use `HirType` on `HirExprStruct`.
+  /// Set for `f<i32>(...)` and similar; struct literals use `HirType` on
+  /// `HirExprStruct`.
   std::optional<std::vector<std::shared_ptr<HirType>>> generic_args;
   bool is_local() const { return segments.size() == 1; }
   std::string primary_name() const { return segments[0].text; }
@@ -138,19 +139,14 @@ struct HirContinue : HirBase {
 };
 
 struct HirLet : HirBase {
+  /// `const` at module scope or in a block vs `let`.
+  bool is_const = false;
   Token name;
   std::optional<HirType> explicit_type;
   std::optional<HirExpr> initializer;
 
-  static auto try_parse(Tokenizer &tokenizer) -> std::expected<HirLet, Error>;
-};
-
-struct HirConst : HirBase {
-  Token name;
-  std::optional<HirType> explicit_type;
-  HirExpr initializer;
-
-  static auto try_parse(Tokenizer &tokenizer) -> std::expected<HirConst, Error>;
+  static auto try_parse(Tokenizer &tokenizer, bool is_const)
+      -> std::expected<HirLet, Error>;
 };
 
 struct HirAssign : HirBase {
@@ -168,9 +164,10 @@ struct HirIf;
 struct HirWhile;
 struct HirFor;
 
-using HirStmtItem = std::variant<
-    HirReturn, HirBreak, HirContinue, HirLet, HirConst, HirAssign, HirExprStmt,
-    std::unique_ptr<HirIf>, std::unique_ptr<HirWhile>, std::unique_ptr<HirFor>>;
+using HirStmtItem =
+    std::variant<HirReturn, HirBreak, HirContinue, HirLet, HirAssign,
+                 HirExprStmt, std::unique_ptr<HirIf>, std::unique_ptr<HirWhile>,
+                 std::unique_ptr<HirFor>>;
 
 struct HirStmt : HirBase {
   HirStmtItem item;
@@ -254,11 +251,6 @@ struct HirImport : HirBase {
       -> std::expected<HirImport, Error>;
 };
 
-using Hir = std::variant<HirFnDef, HirStruct, HirEnum, HirImport, HirConst,
-                         HirLet>;
+using Hir = std::variant<HirFnDef, HirStruct, HirEnum, HirImport, HirLet>;
 
-struct ModuleScope {
-  std::vector<Hir> items;
-};
-
-using ModulesHir = std::unordered_map<std::string, ModuleScope>;
+using ModulesHir = std::unordered_map<std::string, std::vector<Hir>>;

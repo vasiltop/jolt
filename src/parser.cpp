@@ -50,14 +50,12 @@ auto Parser::derive_module_id(const std::filesystem::path &abs) const
   return s;
 }
 
-auto Parser::parse_path(const std::filesystem::path &path)
-    -> ve {
+auto Parser::parse_path(const std::filesystem::path &path) -> ve {
   std::error_code ec0;
   const auto entry = std::filesystem::weakly_canonical(path, ec0);
   if (ec0) {
-    return {Error{
-        .msg = std::format("error: could not resolve path: {} ({})",
-                            path.string(), ec0.message())}};
+    return {Error{.msg = std::format("error: could not resolve path: {} ({})",
+                                     path.string(), ec0.message())}};
   }
   parse_queue_.push(entry);
   ve errors;
@@ -69,9 +67,8 @@ auto Parser::parse_path(const std::filesystem::path &path)
     std::error_code wcc;
     const auto abs_file = std::filesystem::weakly_canonical(p, wcc);
     if (wcc) {
-      errors.push_back(
-          Error{.msg = std::format("error: could not resolve path: {}",
-                                    p.string())});
+      errors.push_back(Error{
+          .msg = std::format("error: could not resolve path: {}", p.string())});
       continue;
     }
 
@@ -92,9 +89,9 @@ auto Parser::parse_path(const std::filesystem::path &path)
     const std::string module_name = derive_module_id(abs_file);
 
     if (module_name.empty()) {
-      errors.push_back(
-          Error{.msg = "internal error: could not derive module name from path; "
-                       "check the file location relative to the entry file"});
+      errors.push_back(Error{
+          .msg = "internal error: could not derive module name from path; "
+                 "check the file location relative to the entry file"});
       continue;
     }
 
@@ -105,15 +102,18 @@ auto Parser::parse_path(const std::filesystem::path &path)
     }
 
     if (modules_hir_.contains(module_name)) {
-      errors.push_back(
-          Error{.msg = std::format(
-                    "error: duplicate module name `{}` (each .jolt file must map "
-                    "to a unique path under the entry directory)",
-                    module_name)});
+      errors.push_back(Error{
+          .msg = std::format(
+              "error: duplicate module name `{}` (each .jolt file must map "
+              "to a unique path under the entry directory)",
+              module_name)});
       continue;
     }
 
-    modules_hir_[module_name].items = std::move(*hir_nodes);
+    modules_hir_[module_name] = std::move(*hir_nodes);
+    module_sources_.insert_or_assign(
+        module_name, ModuleSource{.path = abs_file.string(),
+                                 .text = tokenizer.source()});
   }
 
   if (errors.size()) {
@@ -121,11 +121,12 @@ auto Parser::parse_path(const std::filesystem::path &path)
   }
 
   Checker checker;
-  checker.check_modules(modules_hir_, errors);
+  checker.check_modules(modules_hir_, errors, module_sources_);
   return errors;
 }
 
-auto Parser::hir(Tokenizer &tokenizer, const std::filesystem::path& current_file_path)
+auto Parser::hir(Tokenizer &tokenizer,
+                 const std::filesystem::path &current_file_path)
     -> std::expected<std::vector<Hir>, Error> {
   std::vector<Hir> nodes;
 
@@ -160,21 +161,21 @@ auto Parser::hir(Tokenizer &tokenizer, const std::filesystem::path& current_file
 
       nodes.emplace_back(std::move(*import_def));
     } else if (next.kind == TokenKind::Const) {
-      auto cnst = HirConst::try_parse(tokenizer);
+      auto cnst = HirLet::try_parse(tokenizer, true);
       PROP_ERR(cnst);
       nodes.emplace_back(std::move(*cnst));
     } else if (next.kind == TokenKind::Let) {
-      auto let = HirLet::try_parse(tokenizer);
+      auto let = HirLet::try_parse(tokenizer, false);
       PROP_ERR(let);
       nodes.emplace_back(std::move(*let));
     } else {
       auto t = tokenizer.peek();
       return std::unexpected(tokenizer.make_error(
-          t.pos,
-          std::format("unexpected token at module scope: '{}' ({}). Only `fn`, "
-                      "`struct`, `enum`, `import`, `const`, and `let` are valid "
-                      "here",
-                      t.text, token_kind_string[static_cast<size_t>(t.kind)])));
+          t.pos, std::format(
+                     "unexpected token at module scope: '{}' ({}). Only `fn`, "
+                     "`struct`, `enum`, `import`, `const`, and `let` are valid "
+                     "here",
+                     t.text, token_kind_string[static_cast<size_t>(t.kind)])));
     }
   }
 

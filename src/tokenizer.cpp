@@ -1,4 +1,5 @@
 #include "tokenizer.hpp"
+#include "diagnostics.hpp"
 #include <cctype>
 #include <format>
 #include <iostream>
@@ -44,32 +45,12 @@ auto Tokenizer::skip_whitespace() -> void {
 }
 
 auto Tokenizer::get_line_contents(size_t offset) const -> std::string {
-  size_t line_start = data_.rfind('\n', offset);
-  if (line_start == std::string::npos) {
-    line_start = 0;
-  } else {
-    line_start++; // skip the newline
-  }
-
-  size_t line_end = data_.find('\n', offset);
-  if (line_end == std::string::npos) {
-    line_end = data_.size();
-  }
-
-  return data_.substr(line_start, line_end - line_start);
+  return line_at_offset(data_, offset);
 }
 
 auto Tokenizer::make_error(Pos pos, std::string_view message) const
     -> Error {
-  std::string line_content = get_line_contents(pos.offset);
-  std::string pointer(pos.col > 0 ? static_cast<size_t>(pos.col) - 1 : 0, ' ');
-  pointer += "^";
-  return Error{.msg = std::format("{}:{}:{}: error: {}\n"
-                                 "    |\n"
-                                 "{:4}| {}\n"
-                                 "    | {}",
-                                 get_filename(), pos.line, pos.col, message,
-                                 pos.line, line_content, pointer)};
+  return make_source_error(get_filename(), data_, pos, message);
 }
 
 auto Tokenizer::make_error(const Token &tok, std::string_view message) const

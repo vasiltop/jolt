@@ -1,6 +1,7 @@
 #pragma once
 
 #include "checker.hpp"
+#include "diagnostics.hpp"
 #include "errors.hpp"
 #include "hir.hpp"
 #include "tokenizer.hpp"
@@ -8,6 +9,7 @@
 #include <filesystem>
 #include <queue>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 class Parser {
@@ -25,6 +27,7 @@ private:
 
   std::queue<std::filesystem::path> parse_queue_;
   ModulesHir modules_hir_;
+  std::unordered_map<std::string, ModuleSource> module_sources_;
   /// Directory used to turn paths into `a::b::c` (parent of the entry file);
   /// set on the first parsed file and reused for imports.
   std::optional<std::filesystem::path> source_root_;

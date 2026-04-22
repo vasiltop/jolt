@@ -3,21 +3,6 @@
 #include "hir.hpp"
 #include <iostream>
 
-inline std::string type_to_string(const std::optional<Type> &type) {
-  if (!type)
-    return "<untyped>";
-  return std::visit(
-      [](auto &&arg) -> std::string {
-        using T = std::decay_t<decltype(arg)>;
-        if constexpr (std::is_same_v<T, PrimitiveType>) {
-          if (arg.kind == PrimitiveKind::Int)
-            return "Int";
-        }
-        return "Unknown";
-      },
-      type->data);
-}
-
 inline void print_indent(int indent) {
   for (int i = 0; i < indent; ++i)
     std::cout << "  ";
@@ -201,24 +186,13 @@ inline void print_hir(const HirContinue &cont, int indent) {
 
 inline void print_hir(const HirLet &let, int indent) {
   print_indent(indent);
-  std::cout << "Let: " << let.name.text;
+  std::cout << (let.is_const ? "Const: " : "Let: ") << let.name.text;
   if (let.explicit_type)
     std::cout << ": " << let.explicit_type->to_string();
   std::cout << " [" << type_to_string(let.type) << "]\n";
   if (let.initializer) {
     print_hir(*let.initializer, indent + 1);
   }
-}
-
-inline void print_hir(const HirConst &cnst, int indent) {
-  print_indent(indent);
-  std::cout << "Const: " << cnst.name.text << " [" << type_to_string(cnst.type)
-            << "]\n";
-  if (cnst.explicit_type) {
-    print_indent(indent + 1);
-    std::cout << "Type: " << cnst.explicit_type->to_string() << "\n";
-  }
-  print_hir(cnst.initializer, indent + 1);
 }
 
 inline void print_hir(const HirAssign &assign, int indent) {
@@ -369,9 +343,9 @@ inline void print_hir(const Hir &hir, int indent) {
 }
 
 inline void print_modules(const ModulesHir &modules) {
-  for (const auto &[name, scope] : modules) {
+  for (const auto &[name, items] : modules) {
     std::cout << "Module: " << name << "\n";
-    for (const auto &node : scope.items) {
+    for (const auto &node : items) {
       print_hir(node, 1);
     }
   }
