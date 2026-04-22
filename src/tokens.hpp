@@ -56,12 +56,13 @@ enum class TokenKind {
   Or,
   Fn,
   Ret,
-  Module,
   Let,
   While,
   For,
   Struct,
   Enum,
+  Break,
+  Continue,
 };
 
 // Must match the order of TokenKind
@@ -108,16 +109,17 @@ static constexpr std::string_view token_kind_string[] = {"invalid",
                                                          "or",
                                                          "fn",
                                                          "ret",
-                                                         "module",
                                                          "let",
                                                          "while",
                                                          "for",
                                                          "struct",
-                                                         "enum"};
+                                                         "enum",
+                                                         "break",
+                                                         "continue"};
 
 inline std::unordered_map<std::string_view, TokenKind> keywords{
     {"fn", TokenKind::Fn},         {"ret", TokenKind::Ret},
-    {"module", TokenKind::Module}, {"let", TokenKind::Let},
+    {"let", TokenKind::Let},
     {"while", TokenKind::While},   {"for", TokenKind::For},
     {"if", TokenKind::If},         {"else", TokenKind::Else},
     {"import", TokenKind::Import}, {"const", TokenKind::Const},
@@ -125,7 +127,8 @@ inline std::unordered_map<std::string_view, TokenKind> keywords{
     {"false", TokenKind::False},   {"and", TokenKind::And},
     {"or", TokenKind::Or},         {"not", TokenKind::Not},
     {"struct", TokenKind::Struct}, {"enum", TokenKind::Enum},
-    {"as", TokenKind::As}};
+    {"as", TokenKind::As},
+    {"break", TokenKind::Break},   {"continue", TokenKind::Continue}};
 
 struct Token {
   Pos pos;

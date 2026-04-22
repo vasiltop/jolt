@@ -1,5 +1,3 @@
-module test_loops;
-
 fn compute() i32 {
     let i = 0;
     while i < 10 {

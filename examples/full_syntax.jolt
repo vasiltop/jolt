@@ -1,5 +1,3 @@
-module syntax_target;
-
 import std::io;
 
 const PI = 3.14159;

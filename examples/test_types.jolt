@@ -1,5 +1,3 @@
-module test_types;
-
 import math::geometry;
 
 struct MyStruct {

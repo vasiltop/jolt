@@ -179,6 +179,16 @@ inline void print_hir(const HirReturn &ret, int indent) {
   }
 }
 
+inline void print_hir(const HirBreak &brk, int indent) {
+  print_indent(indent);
+  std::cout << "Break [" << type_to_string(brk.type) << "]\n";
+}
+
+inline void print_hir(const HirContinue &cont, int indent) {
+  print_indent(indent);
+  std::cout << "Continue [" << type_to_string(cont.type) << "]\n";
+}
+
 inline void print_hir(const HirLet &let, int indent) {
   print_indent(indent);
   std::cout << "Let: " << let.name.text;

@@ -126,6 +126,15 @@ struct HirReturn : HirBase {
       -> std::expected<HirReturn, Error>;
 };
 
+struct HirBreak : HirBase {
+  static auto try_parse(Tokenizer &tokenizer) -> std::expected<HirBreak, Error>;
+};
+
+struct HirContinue : HirBase {
+  static auto try_parse(Tokenizer &tokenizer)
+      -> std::expected<HirContinue, Error>;
+};
+
 struct HirLet : HirBase {
   Token name;
   std::optional<HirType> explicit_type;
@@ -157,10 +166,9 @@ struct HirIf;
 struct HirWhile;
 struct HirFor;
 
-using HirStmtItem =
-    std::variant<HirReturn, HirLet, HirConst, HirAssign, HirExprStmt,
-                 std::unique_ptr<HirIf>, std::unique_ptr<HirWhile>,
-                 std::unique_ptr<HirFor>>;
+using HirStmtItem = std::variant<
+    HirReturn, HirBreak, HirContinue, HirLet, HirConst, HirAssign, HirExprStmt,
+    std::unique_ptr<HirIf>, std::unique_ptr<HirWhile>, std::unique_ptr<HirFor>>;
 
 struct HirStmt : HirBase {
   HirStmtItem item;

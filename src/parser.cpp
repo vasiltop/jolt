@@ -5,44 +5,111 @@
 #include <fstream>
 #include <iostream>
 
+auto Parser::path_to_module_id(std::filesystem::path rel) -> std::string {
+  rel = rel.lexically_normal();
+  std::vector<std::string> segs;
+  for (const auto &part : rel) {
+    if (part == "." || part == ".." || part.empty())
+      continue;
+    if (part == "/")
+      continue;
+    segs.push_back(part.string());
+  }
+  if (segs.empty())
+    return {};
+  {
+    std::string &last = segs.back();
+    const auto n = last.size();
+    if (n >= 5 && last.compare(n - 5, 5, ".jolt") == 0)
+      last = last.substr(0, n - 5);
+    else
+      last = std::filesystem::path(last).stem().string();
+  }
+  std::string out;
+  for (size_t i = 0; i < segs.size(); ++i) {
+    if (i)
+      out += "::";
+    out += segs[i];
+  }
+  return out;
+}
+
+auto Parser::derive_module_id(const std::filesystem::path &abs) const
+    -> std::string {
+  if (!source_root_.has_value())
+    return abs.stem().string();
+  std::error_code ec;
+  auto rel = std::filesystem::relative(abs, *source_root_, ec);
+  if (ec || rel.empty())
+    return abs.stem().string();
+  if (rel.generic_string().find("..") != std::string::npos)
+    return abs.stem().string();
+  auto s = path_to_module_id(std::move(rel));
+  if (s.empty())
+    return abs.stem().string();
+  return s;
+}
+
 auto Parser::parse_path(const std::filesystem::path &path)
     -> std::vector<Error> {
-  auto canonical = std::filesystem::canonical(path);
-  parse_queue_.push(canonical);
+  std::error_code ec0;
+  const auto entry = std::filesystem::weakly_canonical(path, ec0);
+  if (ec0) {
+    return {Error{
+        .msg = std::format("error: could not resolve path: {} ({})",
+                            path.string(), ec0.message())}};
+  }
+  parse_queue_.push(entry);
   std::vector<Error> errors;
 
   while (!parse_queue_.empty()) {
     auto p = parse_queue_.front();
     parse_queue_.pop();
 
-    auto data = read_entire_file(p);
+    std::error_code wcc;
+    const auto abs_file = std::filesystem::weakly_canonical(p, wcc);
+    if (wcc) {
+      errors.push_back(
+          Error{.msg = std::format("error: could not resolve path: {}",
+                                    p.string())});
+      continue;
+    }
+
+    auto data = read_entire_file(abs_file);
     if (!data) {
       errors.push_back(data.error());
       continue;
     }
 
-    Tokenizer tokenizer(canonical.filename(), std::move(*data));
+    if (!source_root_.has_value())
+      source_root_ = abs_file.parent_path();
+
+    Tokenizer tokenizer(abs_file.filename().string(), std::move(*data));
 
     // TODO: Make this a compiler flag
     tokenizer.print_tokens();
-    auto res = tokenizer.parse_module_name();
 
-    if (!res) {
-      errors.push_back(res.error());
+    const std::string module_name = derive_module_id(abs_file);
+
+    if (module_name.empty()) {
+      errors.push_back(
+          Error{.msg = "internal error: could not derive module name from path; "
+                       "check the file location relative to the entry file"});
       continue;
     }
 
-    auto hir_nodes = hir(tokenizer, p);
+    auto hir_nodes = hir(tokenizer, abs_file);
     if (!hir_nodes) {
       errors.push_back(hir_nodes.error());
       continue;
     }
 
-    auto module_name = tokenizer.get_module_name();
-
     if (modules_hir_.contains(module_name)) {
-      // TODO: Improve this error message.
-      errors.emplace_back("Module name already exists");
+      errors.push_back(
+          Error{.msg = std::format(
+                    "error: duplicate module name `{}` (each .jolt file must map "
+                    "to a unique path under the entry directory)",
+                    module_name)});
       continue;
     }
 
@@ -109,8 +176,8 @@ auto Parser::hir(Tokenizer &tokenizer, const std::filesystem::path& current_file
       return std::unexpected(tokenizer.make_error(
           t.pos,
           std::format("unexpected token at module scope: '{}' ({}). Only `fn`, "
-                      "`struct`, `enum`, `import`, `const`, and `let` are allowed "
-                      "at this level",
+                      "`struct`, `enum`, `import`, `const`, and `let` are valid "
+                      "here",
                       t.text, token_kind_string[static_cast<size_t>(t.kind)])));
     }
   }

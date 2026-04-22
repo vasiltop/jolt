@@ -1,4 +1,4 @@
-module test;
+import other::submod;
 
 // Test comment
 fn main() i32 {

@@ -26,11 +26,9 @@ public:
   auto make_error(Pos pos, std::string_view message) const -> Error;
   auto make_error(const Token &tok, std::string_view message) const -> Error;
   auto expect_token_and_pop(TokenKind kind) -> std::expected<Token, Error>;
-  auto parse_module_name() -> std::expected<void, Error>;
   auto peek() -> Token;
   auto consume() -> Token;
   const std::string &get_filename() const { return filename_; }
-  const std::string &get_module_name() const { return module_name_; }
 
   auto checkpoint() const -> Checkpoint;
   auto restore(Checkpoint c) -> void;
@@ -45,7 +43,6 @@ private:
 private:
   std::optional<Token> peeked_token_;
   std::string filename_;
-  std::string module_name_;
   std::string data_;
   Pos pos_;
 };

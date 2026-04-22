@@ -351,6 +351,23 @@ auto HirReturn::try_parse(Tokenizer &tokenizer)
   return HirReturn{.expression = std::move(expr)};
 }
 
+auto HirBreak::try_parse(Tokenizer &tokenizer) -> std::expected<HirBreak, Error> {
+  auto kw = tokenizer.expect_token_and_pop(TokenKind::Break);
+  PROP_ERR(kw);
+  auto semi = tokenizer.expect_token_and_pop(TokenKind::Semicolon);
+  PROP_ERR(semi);
+  return HirBreak{};
+}
+
+auto HirContinue::try_parse(Tokenizer &tokenizer)
+    -> std::expected<HirContinue, Error> {
+  auto kw = tokenizer.expect_token_and_pop(TokenKind::Continue);
+  PROP_ERR(kw);
+  auto semi = tokenizer.expect_token_and_pop(TokenKind::Semicolon);
+  PROP_ERR(semi);
+  return HirContinue{};
+}
+
 auto HirLet::try_parse(Tokenizer &tokenizer) -> std::expected<HirLet, Error> {
   tokenizer.expect_token_and_pop(TokenKind::Let);
   auto name = tokenizer.expect_token_and_pop(TokenKind::Ident);
@@ -387,6 +404,14 @@ auto HirStmt::try_parse(Tokenizer &tokenizer) -> std::expected<HirStmt, Error> {
     auto ret = HirReturn::try_parse(tokenizer);
     PROP_ERR(ret);
     return HirStmt{.item = std::move(*ret)};
+  } else if (next.kind == TokenKind::Break) {
+    auto brk = HirBreak::try_parse(tokenizer);
+    PROP_ERR(brk);
+    return HirStmt{.item = std::move(*brk)};
+  } else if (next.kind == TokenKind::Continue) {
+    auto cont = HirContinue::try_parse(tokenizer);
+    PROP_ERR(cont);
+    return HirStmt{.item = std::move(*cont)};
   } else if (next.kind == TokenKind::Let) {
     auto let = HirLet::try_parse(tokenizer);
     PROP_ERR(let);

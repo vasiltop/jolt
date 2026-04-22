@@ -1,1 +1,2 @@
-module std::io;
+// std.io — resolved from path examples/std/io.jolt
+

@@ -117,34 +117,6 @@ auto Tokenizer::consume() -> Token {
   return next_token_impl();
 }
 
-auto Tokenizer::parse_module_name() -> std::expected<void, Error> {
-  auto mod = expect_token_and_pop(TokenKind::Module);
-  PROP_ERR(mod);
-
-  std::string name;
-  while (true) {
-    auto part = expect_token_and_pop(TokenKind::Ident);
-    PROP_ERR(part);
-    name += part->text;
-
-    if (peek().kind == TokenKind::Colon) {
-      consume();
-      auto second_colon = expect_token_and_pop(TokenKind::Colon);
-      PROP_ERR(second_colon);
-      name += "::";
-    } else {
-      break;
-    }
-  }
-
-  auto semi = expect_token_and_pop(TokenKind::Semicolon);
-  PROP_ERR(semi);
-
-  module_name_ = name;
-
-  return {};
-}
-
 auto Tokenizer::next_token_impl() -> Token {
   skip_whitespace();
 
