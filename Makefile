@@ -6,7 +6,7 @@ libs :=
 
 $(out): $(files)
 	mkdir -p bin
-	$(compiler) src/*.cpp -o $(out) -std=$(version) $(libs)
+	$(compiler) -g src/*.cpp -o $(out) -std=$(version) $(libs)
 
 clean:
 	rm -f ./bin/*

@@ -1,5 +1,7 @@
 #include "parser.hpp"
 #include "checker.hpp"
+#include "tokens.hpp"
+#include <format>
 #include <fstream>
 #include <iostream>
 
@@ -81,22 +83,36 @@ auto Parser::hir(Tokenizer &tokenizer, const std::filesystem::path& current_file
     } else if (next.kind == TokenKind::Import) {
       auto import_def = HirImport::try_parse(tokenizer);
       PROP_ERR(import_def);
-      
+
       // Calculate path to imported module.
       // E.g., `import math::geometry;` -> math/geometry.jolt
       std::filesystem::path import_path = current_file_path.parent_path();
-      for (const auto& part : import_def->path) {
-          import_path /= part.text;
+      for (const auto &part : import_def->path) {
+        import_path /= part.text;
       }
       import_path += ".jolt";
-      
+
       // Add the imported file to the queue to be parsed.
       parse_queue_.push(import_path);
-      
+
       nodes.emplace_back(std::move(*import_def));
+    } else if (next.kind == TokenKind::Const) {
+      auto cnst = HirConst::try_parse(tokenizer);
+      PROP_ERR(cnst);
+      nodes.emplace_back(std::move(*cnst));
+    } else if (next.kind == TokenKind::Let) {
+      auto module_let = HirModuleLet::try_parse(tokenizer);
+      PROP_ERR(module_let);
+      nodes.emplace_back(std::move(*module_let));
     } else {
-      // Skip unhandled top-level tokens for now
-      tokenizer.consume();
+      auto t = tokenizer.peek();
+      return std::unexpected(
+          Error{.msg = std::format(
+                    "{}:{}:{}: error: unexpected token at module scope: '{}' ({}). "
+                    "Only `fn`, `struct`, `enum`, `import`, `const`, and `let` are "
+                    "allowed at this level",
+                    tokenizer.get_filename(), t.pos.line, t.pos.col, t.text,
+                    token_kind_string[static_cast<size_t>(t.kind)])});
     }
   }
 

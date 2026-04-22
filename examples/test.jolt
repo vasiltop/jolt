@@ -2,8 +2,5 @@ module test;
 
 // Test comment
 fn main() i32 {
-	let a = 5;
-	a = 10;
-
-	ret a;
+	let a = math::pi;
 }

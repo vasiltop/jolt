@@ -18,6 +18,8 @@ struct HirType;
 
 struct HirTypePath {
   std::vector<Token> path;
+  /// if set, the type is `Path<T, U, …>` (`shared_ptr` so `HirType` can be copied)
+  std::optional<std::vector<std::shared_ptr<HirType>>> generic_args;
 };
 
 struct HirTypePtr {
@@ -55,6 +57,13 @@ struct HirExprIndex : HirBase {
   std::unique_ptr<HirExpr> index;
 };
 
+// Stores any name lookup
+struct HirExprPath : HirBase {
+  std::vector<Token> segments;
+  bool is_local() const { return segments.size() == 1; }
+  std::string primary_name() const { return segments[0].text; }
+};
+
 // For structs or enums
 struct HirExprMember : HirBase {
   std::unique_ptr<HirExpr> object;
@@ -81,11 +90,26 @@ struct HirExprUnary : HirBase {
   static auto try_parse(Tokenizer &tokenizer) -> std::expected<HirExpr, Error>;
 };
 
+struct HirExprArray : HirBase {
+  std::vector<HirExpr> elements;
+};
+
+struct StructExprField {
+  Token name;
+  std::unique_ptr<HirExpr> value;
+};
+
+struct HirExprStruct : HirBase {
+  HirType type;
+  std::vector<StructExprField> fields;
+};
+
 using HirExprItem =
-    std::variant<HirExprLiteral, HirExprIdent, std::unique_ptr<HirExprBinary>,
-                 std::unique_ptr<HirExprUnary>, std::unique_ptr<HirExprCall>,
-                 std::unique_ptr<HirExprIndex>, std::unique_ptr<HirExprMember>,
-                 std::unique_ptr<HirExprAs>>;
+    std::variant<HirExprLiteral, HirExprPath, HirExprIdent,
+                 std::unique_ptr<HirExprBinary>, std::unique_ptr<HirExprUnary>,
+                 std::unique_ptr<HirExprCall>, std::unique_ptr<HirExprIndex>,
+                 std::unique_ptr<HirExprMember>, std::unique_ptr<HirExprAs>,
+                 std::unique_ptr<HirExprArray>, std::unique_ptr<HirExprStruct>>;
 
 struct HirExpr : HirBase {
   HirExprItem item;
@@ -147,14 +171,16 @@ struct HirIf : HirBase {
   HirBlock then_block;
   std::optional<HirBlock> else_block;
 
-  static auto try_parse(Tokenizer &tokenizer) -> std::expected<std::unique_ptr<HirIf>, Error>;
+  static auto try_parse(Tokenizer &tokenizer)
+      -> std::expected<std::unique_ptr<HirIf>, Error>;
 };
 
 struct HirWhile : HirBase {
   HirExpr condition;
   HirBlock block;
 
-  static auto try_parse(Tokenizer &tokenizer) -> std::expected<std::unique_ptr<HirWhile>, Error>;
+  static auto try_parse(Tokenizer &tokenizer)
+      -> std::expected<std::unique_ptr<HirWhile>, Error>;
 };
 
 struct HirFor : HirBase {
@@ -163,7 +189,8 @@ struct HirFor : HirBase {
   std::unique_ptr<HirStmt> update;
   HirBlock block;
 
-  static auto try_parse(Tokenizer &tokenizer) -> std::expected<std::unique_ptr<HirFor>, Error>;
+  static auto try_parse(Tokenizer &tokenizer)
+      -> std::expected<std::unique_ptr<HirFor>, Error>;
 };
 
 // Types & Signatures
@@ -171,7 +198,8 @@ struct HirTypedIdent : HirBase {
   Token name;
   HirType type;
 
-  HirTypedIdent(Token name_, HirType type_) : name(name_), type(std::move(type_)) {};
+  HirTypedIdent(Token name_, HirType type_)
+      : name(name_), type(std::move(type_)) {};
 };
 
 // Top-Level Items
@@ -204,19 +232,33 @@ struct HirEnum : HirBase {
 struct HirImport : HirBase {
   std::vector<Token> path;
 
-  static auto try_parse(Tokenizer &tokenizer) -> std::expected<HirImport, Error>;
+  static auto try_parse(Tokenizer &tokenizer)
+      -> std::expected<HirImport, Error>;
 };
 
 struct HirConst : HirBase {
   Token name;
+  std::optional<HirType> explicit_type;
   HirExpr initializer;
+
+  static auto try_parse(Tokenizer &tokenizer) -> std::expected<HirConst, Error>;
 };
 
-using Hir = std::variant<HirFnDef, HirStruct, HirEnum, HirImport, HirConst>;
+struct HirModuleLet : HirBase {
+  Token name;
+  std::optional<HirType> explicit_type;
+  std::optional<HirExpr> initializer;
+
+  static auto try_parse(Tokenizer &tokenizer)
+      -> std::expected<HirModuleLet, Error>;
+};
+
+using Hir = std::variant<HirFnDef, HirStruct, HirEnum, HirImport, HirConst,
+                         HirModuleLet>;
 
 struct ModuleScope {
-    std::vector<Hir> items;
-    std::unordered_map<std::string, std::unique_ptr<ModuleScope>> submodules;
+  std::vector<Hir> items;
+  std::unordered_map<std::string, std::unique_ptr<ModuleScope>> submodules;
 };
 
 using ModulesHir = std::unordered_map<std::string, ModuleScope>;

@@ -8,6 +8,11 @@
 
 class Tokenizer {
 public:
+  struct Checkpoint {
+    Pos pos{};
+    std::optional<Token> peeked_token;
+  };
+
   Tokenizer(std::string filename, std::string data)
       : filename_(filename), data_(std::move(data)), pos_({1, 0, 0}) {}
 
@@ -22,6 +27,9 @@ public:
   auto consume() -> Token;
   const std::string &get_filename() const { return filename_; }
   const std::string &get_module_name() const { return module_name_; }
+
+  auto checkpoint() const -> Checkpoint;
+  auto restore(Checkpoint c) -> void;
 
 public:
   auto reset() -> void;

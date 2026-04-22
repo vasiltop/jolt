@@ -83,6 +83,15 @@ auto Tokenizer::expect_token_and_pop(TokenKind kind)
   return tok;
 }
 
+auto Tokenizer::checkpoint() const -> Checkpoint {
+  return Checkpoint{.pos = pos_, .peeked_token = peeked_token_};
+}
+
+auto Tokenizer::restore(Checkpoint c) -> void {
+  pos_ = c.pos;
+  peeked_token_ = std::move(c.peeked_token);
+}
+
 auto Tokenizer::peek() -> Token {
   if (!peeked_token_) {
     peeked_token_ = next_token_impl();
