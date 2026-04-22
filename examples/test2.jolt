@@ -1,8 +1,5 @@
-import test;
+import other::submod;
 
-fn main() i32 {
-    let a = 5;
-    a = 10;
-    a == 10;
-    a = 10;
+fn other() i32 {
+	helper();
 }

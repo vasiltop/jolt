@@ -1,9 +1,5 @@
-import main;
+import ..::test3;
 
-Type {
-
-	}
-
-fn test() void {
-	B {};
+fn helper() void {
+	ret;
 }

@@ -258,7 +258,14 @@ auto Tokenizer::next_token_impl() -> Token {
       t.kind = TokenKind::Comma;
       break;
     case '.':
-      t.kind = TokenKind::Dot;
+      if (peek_char() == '.') {
+        next_char();
+        count++;
+        t.kind = TokenKind::DotDot;
+        t.text = std::string_view(first, count);
+      } else {
+        t.kind = TokenKind::Dot;
+      }
       break;
     case '&':
       t.kind = TokenKind::Ampersand;

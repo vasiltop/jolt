@@ -150,9 +150,22 @@ auto Parser::hir(Tokenizer &tokenizer,
 
       // Calculate path to imported module.
       // E.g., `import math::geometry;` -> math/geometry.jolt
+      // Leading `.` / `..` segments walk from this file's directory (Option A).
       std::filesystem::path import_path = current_file_path.parent_path();
+      bool has_module_name = false;
       for (const auto &part : import_def->path) {
-        import_path /= part.text;
+        if (part.kind == TokenKind::Ident)
+          has_module_name = true;
+        if (part.text == "..")
+          import_path = import_path.parent_path();
+        else if (part.text == ".")
+          ;
+        else
+          import_path /= part.text;
+      }
+      if (!has_module_name) {
+        return std::unexpected(Error{
+            .msg = "import path must include a module name (e.g. `import ..::foo;`)"});
       }
       import_path += ".jolt";
 

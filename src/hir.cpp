@@ -691,11 +691,20 @@ auto HirImport::try_parse(Tokenizer &tokenizer)
   tokenizer.expect_token_and_pop(TokenKind::Import);
 
   std::vector<Token> path;
+  bool only_relative = true;
 
   while (true) {
-    auto part = tokenizer.expect_token_and_pop(TokenKind::Ident);
-    PROP_ERR(part);
-    path.push_back(*part);
+    auto next = tokenizer.peek();
+    if (only_relative && next.kind == TokenKind::DotDot) {
+      path.push_back(tokenizer.consume());
+    } else if (only_relative && next.kind == TokenKind::Dot) {
+      path.push_back(tokenizer.consume());
+    } else {
+      auto part = tokenizer.expect_token_and_pop(TokenKind::Ident);
+      PROP_ERR(part);
+      path.push_back(*part);
+      only_relative = false;
+    }
 
     if (tokenizer.peek().kind == TokenKind::Colon) {
       tokenizer.consume();
