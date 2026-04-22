@@ -1,5 +1,6 @@
 #include "hir.hpp"
 #include "tokenizer.hpp"
+#include <format>
 #include <memory>
 
 static auto parse_type_argument_list(Tokenizer &tokenizer)
@@ -23,8 +24,8 @@ static auto parse_type_argument_list(Tokenizer &tokenizer)
       tokenizer.consume();
       return args;
     }
-    return std::unexpected(
-        Error{.msg = "expected `,` or `>` in type argument list"});
+    return std::unexpected(tokenizer.make_error(
+        tokenizer.peek().pos, "expected `,` or `>` in type argument list"));
   }
 }
 
@@ -190,9 +191,10 @@ auto parse_primary(Tokenizer &tokenizer) -> std::expected<HirExpr, Error> {
     while (tokenizer.peek().kind == TokenKind::Colon) {
       tokenizer.consume();
       if (tokenizer.peek().kind != TokenKind::Colon) {
-        return std::unexpected(
-            Error{.msg = "in expressions, a single `:` is not valid; use `::` "
-                        "to separate a path, or for generics use e.g. `A<T>{"});
+        return std::unexpected(tokenizer.make_error(
+            tokenizer.peek().pos,
+            "a single `:` is not valid; use `::` for paths, or for generics "
+            "use e.g. `A<T>{ ... }`"));
       }
       tokenizer.consume();
       auto next_ident = tokenizer.expect_token_and_pop(TokenKind::Ident);
@@ -282,11 +284,14 @@ auto parse_primary(Tokenizer &tokenizer) -> std::expected<HirExpr, Error> {
     break;
   default:
     std::string type(token_kind_string[static_cast<size_t>(tok.kind)]);
-    return std::unexpected(
-        Error{.msg = "TODO: unimplemented: " + tok.text + " " + type});
+    return std::unexpected(tokenizer.make_error(
+        tok.pos,
+        std::format("expression syntax not implemented for `{}` ({})", tok.text,
+                    type)));
   }
 
-  return std::unexpected(Error{.msg = "TODO: unimplemented"});
+  return std::unexpected(
+      tokenizer.make_error(tok.pos, "invalid primary expression"));
 }
 
 auto HirExpr::try_parse(Tokenizer &tokenizer, int precedence)
@@ -386,6 +391,10 @@ auto HirStmt::try_parse(Tokenizer &tokenizer) -> std::expected<HirStmt, Error> {
     auto let = HirLet::try_parse(tokenizer);
     PROP_ERR(let);
     return HirStmt{.item = std::move(*let)};
+  } else if (next.kind == TokenKind::Const) {
+    auto cnst = HirConst::try_parse(tokenizer);
+    PROP_ERR(cnst);
+    return HirStmt{.item = std::move(*cnst)};
   } else if (next.kind == TokenKind::If) {
     auto if_stmt = HirIf::try_parse(tokenizer);
     PROP_ERR(if_stmt);

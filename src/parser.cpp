@@ -106,13 +106,12 @@ auto Parser::hir(Tokenizer &tokenizer, const std::filesystem::path& current_file
       nodes.emplace_back(std::move(*module_let));
     } else {
       auto t = tokenizer.peek();
-      return std::unexpected(
-          Error{.msg = std::format(
-                    "{}:{}:{}: error: unexpected token at module scope: '{}' ({}). "
-                    "Only `fn`, `struct`, `enum`, `import`, `const`, and `let` are "
-                    "allowed at this level",
-                    tokenizer.get_filename(), t.pos.line, t.pos.col, t.text,
-                    token_kind_string[static_cast<size_t>(t.kind)])});
+      return std::unexpected(tokenizer.make_error(
+          t.pos,
+          std::format("unexpected token at module scope: '{}' ({}). Only `fn`, "
+                      "`struct`, `enum`, `import`, `const`, and `let` are allowed "
+                      "at this level",
+                      t.text, token_kind_string[static_cast<size_t>(t.kind)])));
     }
   }
 
@@ -123,13 +122,15 @@ auto Parser::read_entire_file(const std::filesystem::path &path)
     -> std::expected<std::string, Error> {
   std::ifstream is{path, std::ios::ate | std::ios::binary};
   if (!is)
-    return std::unexpected(Error{.msg = "File not found"});
+    return std::unexpected(Error{
+        .msg = std::format("error: could not open file: {}", path.string())});
 
   auto size = is.tellg();
   is.seekg(0);
   std::string out(size, '\0');
   if (!is.read(out.data(), size))
-    return std::unexpected(Error{.msg = "Read error"});
+    return std::unexpected(Error{
+        .msg = std::format("error: could not read file: {}", path.string())});
 
   return out;
 }

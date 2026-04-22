@@ -190,6 +190,17 @@ inline void print_hir(const HirLet &let, int indent) {
   }
 }
 
+inline void print_hir(const HirConst &cnst, int indent) {
+  print_indent(indent);
+  std::cout << "Const: " << cnst.name.text << " [" << type_to_string(cnst.type)
+            << "]\n";
+  if (cnst.explicit_type) {
+    print_indent(indent + 1);
+    std::cout << "Type: " << cnst.explicit_type->to_string() << "\n";
+  }
+  print_hir(cnst.initializer, indent + 1);
+}
+
 inline void print_hir(const HirAssign &assign, int indent) {
   print_indent(indent);
   std::cout << "Assign [" << type_to_string(assign.type) << "]\n";
@@ -344,17 +355,6 @@ inline void print_hir(const HirModuleLet &ml, int indent) {
   if (ml.initializer) {
     print_hir(*ml.initializer, indent + 1);
   }
-}
-
-inline void print_hir(const HirConst &cnst, int indent) {
-  print_indent(indent);
-  std::cout << "Const: " << cnst.name.text << " [" << type_to_string(cnst.type)
-            << "]\n";
-  if (cnst.explicit_type) {
-    print_indent(indent + 1);
-    std::cout << "Type: " << cnst.explicit_type->to_string() << "\n";
-  }
-  print_hir(cnst.initializer, indent + 1);
 }
 
 inline void print_hir(const Hir &hir, int indent) {

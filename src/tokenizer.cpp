@@ -59,6 +59,24 @@ auto Tokenizer::get_line_contents(size_t offset) const -> std::string {
   return data_.substr(line_start, line_end - line_start);
 }
 
+auto Tokenizer::make_error(Pos pos, std::string_view message) const
+    -> Error {
+  std::string line_content = get_line_contents(pos.offset);
+  std::string pointer(pos.col > 0 ? static_cast<size_t>(pos.col) - 1 : 0, ' ');
+  pointer += "^";
+  return Error{.msg = std::format("{}:{}:{}: error: {}\n"
+                                 "    |\n"
+                                 "{:4}| {}\n"
+                                 "    | {}",
+                                 get_filename(), pos.line, pos.col, message,
+                                 pos.line, line_content, pointer)};
+}
+
+auto Tokenizer::make_error(const Token &tok, std::string_view message) const
+    -> Error {
+  return make_error(tok.pos, message);
+}
+
 auto Tokenizer::expect_token_and_pop(TokenKind kind)
     -> std::expected<Token, Error> {
   auto tok = consume();
@@ -66,18 +84,9 @@ auto Tokenizer::expect_token_and_pop(TokenKind kind)
   if (tok.kind != kind) {
     auto found = token_kind_string[static_cast<size_t>(tok.kind)];
     auto expected = token_kind_string[static_cast<size_t>(kind)];
-
-    std::string line_content = get_line_contents(tok.pos.offset);
-    std::string pointer(tok.pos.col > 0 ? tok.pos.col - 1 : 0, ' ');
-    pointer += "^";
-
-    return std::unexpected(Error{
-        .msg = std::format("{}:{}:{}: error: expected token '{}', found '{}'.\n"
-                           "    |\n"
-                           "{:4}| {}\n"
-                           "    | {}",
-                           get_filename(), tok.pos.line, tok.pos.col, expected,
-                           found, tok.pos.line, line_content, pointer)});
+    return std::unexpected(
+        make_error(tok.pos, std::format("expected token '{}', found '{}'",
+                                         expected, found)));
   }
 
   return tok;

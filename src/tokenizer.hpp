@@ -5,6 +5,7 @@
 #include <expected>
 #include <optional>
 #include <string>
+#include <string_view>
 
 class Tokenizer {
 public:
@@ -21,6 +22,9 @@ public:
   auto peek_char() const -> std::optional<char>;
   auto skip_whitespace() -> void;
   auto get_line_contents(size_t offset) const -> std::string;
+  /// Same layout as a failed `expect_token_and_pop` (file, line, caret line).
+  auto make_error(Pos pos, std::string_view message) const -> Error;
+  auto make_error(const Token &tok, std::string_view message) const -> Error;
   auto expect_token_and_pop(TokenKind kind) -> std::expected<Token, Error>;
   auto parse_module_name() -> std::expected<void, Error>;
   auto peek() -> Token;
