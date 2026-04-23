@@ -1,0 +1,10 @@
+fn main() i32 {
+    let a = true;
+    let b = true;
+    if a {
+        if b {
+            ret 1;
+        }
+    }
+    ret 0;
+}

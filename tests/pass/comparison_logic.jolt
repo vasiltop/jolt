@@ -5,7 +5,7 @@ fn main() i32 {
     let d = false or true;
     let e = not false;
     let cond = a and b and e;
-    if (cond) {
+    if cond {
         ret 1;
     }
     ret 0;

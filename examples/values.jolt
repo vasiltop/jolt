@@ -11,6 +11,8 @@ fn main() i32 {
 		let ind = arr[n];
 		let m = math::constants::PI;
 
+		let afds = true;
+
 		if afds {
 			ret 0;
 		}

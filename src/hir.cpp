@@ -58,8 +58,9 @@ auto HirType::try_parse(Tokenizer &tokenizer) -> std::expected<HirType, Error> {
   return HirType{.item = HirTypePath{.path = std::move(path)}};
 }
 
-auto parse_postfix(Tokenizer &tokenizer) -> std::expected<HirExpr, Error> {
-  auto expr = parse_primary(tokenizer);
+auto parse_postfix(Tokenizer &tokenizer, bool allow_struct_literal_after_path)
+    -> std::expected<HirExpr, Error> {
+  auto expr = parse_primary(tokenizer, allow_struct_literal_after_path);
   PROP_ERR(expr);
 
   for (;;) {
@@ -108,13 +109,15 @@ auto parse_postfix(Tokenizer &tokenizer) -> std::expected<HirExpr, Error> {
   return expr;
 }
 
-auto HirExprUnary::try_parse(Tokenizer &tokenizer)
+auto HirExprUnary::try_parse(Tokenizer &tokenizer,
+                             bool allow_struct_literal_after_path)
     -> std::expected<HirExpr, Error> {
   auto tok = tokenizer.peek();
 
   if (token_is_unary_op(tok)) {
     tokenizer.consume();
-    auto sub_expr = HirExprUnary::try_parse(tokenizer);
+    auto sub_expr =
+        HirExprUnary::try_parse(tokenizer, allow_struct_literal_after_path);
     PROP_ERR(sub_expr);
 
     auto unary = std::make_unique<HirExprUnary>();
@@ -124,10 +127,11 @@ auto HirExprUnary::try_parse(Tokenizer &tokenizer)
     return HirExpr{.item = std::move(unary)};
   }
 
-  return parse_postfix(tokenizer);
+  return parse_postfix(tokenizer, allow_struct_literal_after_path);
 }
 
-auto parse_primary(Tokenizer &tokenizer) -> std::expected<HirExpr, Error> {
+auto parse_primary(Tokenizer &tokenizer, bool allow_struct_literal_after_path)
+    -> std::expected<HirExpr, Error> {
   auto tok = tokenizer.consume();
 
   switch (tok.kind) {
@@ -168,7 +172,10 @@ auto parse_primary(Tokenizer &tokenizer) -> std::expected<HirExpr, Error> {
     }
 
     // Struct initialization: `A {`, `a::A {`, …
-    if (tokenizer.peek().kind == TokenKind::BraceOpen) {
+    // In `if` / `while` / `for` conditions, `if cond {` must not parse `cond {`
+    // as a struct literal; use `(Type { ... })` when a literal is the condition.
+    if (allow_struct_literal_after_path &&
+        tokenizer.peek().kind == TokenKind::BraceOpen) {
       tokenizer.consume();
       std::vector<StructExprField> fields;
 
@@ -240,9 +247,11 @@ auto parse_primary(Tokenizer &tokenizer) -> std::expected<HirExpr, Error> {
       tokenizer.make_error(tok.pos, "invalid primary expression"));
 }
 
-auto HirExpr::try_parse(Tokenizer &tokenizer, int precedence)
+auto HirExpr::try_parse(Tokenizer &tokenizer, int precedence,
+                        bool allow_struct_literal_after_path)
     -> std::expected<HirExpr, Error> {
-  auto unary = HirExprUnary::try_parse(tokenizer);
+  auto unary =
+      HirExprUnary::try_parse(tokenizer, allow_struct_literal_after_path);
   PROP_ERR(unary);
   HirExprItem left = std::move(unary->item);
 
@@ -406,7 +415,7 @@ auto HirIf::try_parse(Tokenizer &tokenizer)
     -> std::expected<std::unique_ptr<HirIf>, Error> {
   tokenizer.expect_token_and_pop(TokenKind::If);
 
-  auto cond = HirExpr::try_parse(tokenizer);
+  auto cond = HirExpr::try_parse(tokenizer, 0, false);
   PROP_ERR(cond);
 
   auto then_block = HirBlock::try_parse(tokenizer);
@@ -442,7 +451,7 @@ auto HirWhile::try_parse(Tokenizer &tokenizer)
     -> std::expected<std::unique_ptr<HirWhile>, Error> {
   tokenizer.expect_token_and_pop(TokenKind::While);
 
-  auto cond = HirExpr::try_parse(tokenizer);
+  auto cond = HirExpr::try_parse(tokenizer, 0, false);
   PROP_ERR(cond);
 
   auto block = HirBlock::try_parse(tokenizer);
@@ -462,7 +471,7 @@ auto HirFor::try_parse(Tokenizer &tokenizer)
   auto init = HirStmt::try_parse(tokenizer);
   PROP_ERR(init);
 
-  auto cond = HirExpr::try_parse(tokenizer);
+  auto cond = HirExpr::try_parse(tokenizer, 0, false);
   PROP_ERR(cond);
 
   tokenizer.expect_token_and_pop(TokenKind::Semicolon);

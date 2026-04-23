@@ -75,14 +75,20 @@ struct HirExprAs : HirBase {
   HirType hir_type;
 };
 
-auto parse_primary(Tokenizer &tokenizer) -> std::expected<HirExpr, Error>;
-auto parse_postfix(Tokenizer &tokenizer) -> std::expected<HirExpr, Error>;
+auto parse_primary(Tokenizer &tokenizer,
+                   bool allow_struct_literal_after_path = true)
+    -> std::expected<HirExpr, Error>;
+auto parse_postfix(Tokenizer &tokenizer,
+                   bool allow_struct_literal_after_path = true)
+    -> std::expected<HirExpr, Error>;
 
 struct HirExprUnary : HirBase {
   Token op;
   std::unique_ptr<HirExpr> expr;
 
-  static auto try_parse(Tokenizer &tokenizer) -> std::expected<HirExpr, Error>;
+  static auto try_parse(Tokenizer &tokenizer,
+                        bool allow_struct_literal_after_path = true)
+      -> std::expected<HirExpr, Error>;
 };
 
 struct HirExprArray : HirBase {
@@ -110,7 +116,8 @@ using HirExprItem =
 struct HirExpr : HirBase {
   HirExprItem item;
 
-  static auto try_parse(Tokenizer &tokenizer, int precedence = 0)
+  static auto try_parse(Tokenizer &tokenizer, int precedence = 0,
+                        bool allow_struct_literal_after_path = true)
       -> std::expected<HirExpr, Error>;
 };
 
