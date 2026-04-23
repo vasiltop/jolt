@@ -1,0 +1,12 @@
+fn main() i32 {
+    let a = 1 < 2;
+    let b = 2 == 2;
+    let c = true and false;
+    let d = false or true;
+    let e = not false;
+    let cond = a and b and e;
+    if (cond) {
+        ret 1;
+    }
+    ret 0;
+}

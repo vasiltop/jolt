@@ -1,0 +1,4 @@
+fn main() i32 {
+    const k = 5;
+    ret k + 1;
+}

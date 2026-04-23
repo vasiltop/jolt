@@ -1,0 +1,6 @@
+enum E { A }
+
+fn main() void {
+    let x = E::A;
+    let y = x.foo;
+}

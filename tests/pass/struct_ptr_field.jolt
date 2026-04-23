@@ -1,0 +1,9 @@
+struct Box {
+    p: *i32;
+}
+
+fn main() void {
+    let v = 1;
+    let b = Box { p: &v };
+    ret;
+}

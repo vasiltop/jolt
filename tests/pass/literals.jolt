@@ -1,0 +1,9 @@
+fn main() i32 {
+    let ni = 42;
+    let ns = "ok";
+    let nc = 'z';
+    let nb = true;
+    let nr = 1.5;
+    let nn: *i32 = null;
+    ret ni;
+}

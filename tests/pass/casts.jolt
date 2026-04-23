@@ -1,0 +1,5 @@
+fn main() i32 {
+    let small: u8 = 53 as u8;
+    let wide = small as i32;
+    ret wide;
+}

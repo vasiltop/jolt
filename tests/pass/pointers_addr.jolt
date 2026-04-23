@@ -1,0 +1,5 @@
+fn main() i32 {
+    let v = 7;
+    let p = &v;
+    ret *p;
+}

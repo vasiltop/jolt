@@ -1,0 +1,10 @@
+fn main() i32 {
+    let x = 2;
+    if x == 0 {
+        ret 0;
+    } else if x == 1 {
+        ret 1;
+    } else {
+        ret x;
+    }
+}

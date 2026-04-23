@@ -1,0 +1,9 @@
+enum Color {
+    Red,
+    Green,
+}
+
+fn main() i32 {
+    let c = Color::Red;
+    ret 0;
+}

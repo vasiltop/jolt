@@ -1,0 +1,5 @@
+import data::vals;
+
+fn main() i32 {
+    ret data::vals::stride;
+}

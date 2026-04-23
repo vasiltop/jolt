@@ -9,5 +9,10 @@ $(out): $(files)
 	mkdir -p bin
 	$(compiler) -time -g $(source_files) -o $(out) -std=$(version) $(libs)
 
+.PHONY: test clean
+
+test: $(out)
+	tests/run.sh
+
 clean:
 	rm -f ./bin/*

@@ -1,0 +1,8 @@
+fn noop() void {
+    ret;
+}
+
+fn main() void {
+    noop();
+    ret;
+}
