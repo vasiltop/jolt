@@ -6,12 +6,12 @@ struct MyStruct {
     field3: **i64;
 }
 
-enum TestEnum {
-	Field1,
-	Field2
+enum ShapeKind {
+    Field1,
+    Field2,
 }
 
-fn compute(val: *math::geometry::Vector) *i32 {
+fn use_vec(val: *math::geometry::Vector) *i32 {
     let x: *i32 = null;
     let y = x as *i64;
     ret x;

@@ -18,8 +18,6 @@ struct HirType;
 
 struct HirTypePath {
   std::vector<Token> path;
-  /// if set, the type is `Path<T, U, ...>`
-  std::optional<std::vector<std::shared_ptr<HirType>>> generic_args;
 };
 
 struct HirTypePtr {
@@ -42,10 +40,6 @@ struct HirExprLiteral : HirBase {
   Token tok;
 };
 
-struct HirExprIdent : HirBase {
-  Token tok;
-};
-
 struct HirExprBinary : HirBase {
   Token op;
   std::unique_ptr<HirExpr> lhs;
@@ -60,9 +54,6 @@ struct HirExprIndex : HirBase {
 // Stores any name lookup
 struct HirExprPath : HirBase {
   std::vector<Token> segments;
-  /// Set for `f<i32>(...)` and similar; struct literals use `HirType` on
-  /// `HirExprStruct`.
-  std::optional<std::vector<std::shared_ptr<HirType>>> generic_args;
   bool is_local() const { return segments.size() == 1; }
   std::string primary_name() const { return segments[0].text; }
 };
@@ -80,7 +71,8 @@ struct HirExprCall : HirBase {
 
 struct HirExprAs : HirBase {
   std::unique_ptr<HirExpr> expr;
-  HirType type;
+  /// AST type written after `as` (semantic result lives on `HirBase::type`).
+  HirType hir_type;
 };
 
 auto parse_primary(Tokenizer &tokenizer) -> std::expected<HirExpr, Error>;
@@ -103,12 +95,13 @@ struct StructExprField {
 };
 
 struct HirExprStruct : HirBase {
-  HirType type;
+  /// Struct name / path in source (semantic value type on `HirBase::type`).
+  HirType hir_type;
   std::vector<StructExprField> fields;
 };
 
 using HirExprItem =
-    std::variant<HirExprLiteral, HirExprPath, HirExprIdent,
+    std::variant<HirExprLiteral, HirExprPath,
                  std::unique_ptr<HirExprBinary>, std::unique_ptr<HirExprUnary>,
                  std::unique_ptr<HirExprCall>, std::unique_ptr<HirExprIndex>,
                  std::unique_ptr<HirExprMember>, std::unique_ptr<HirExprAs>,
@@ -211,16 +204,16 @@ struct HirFor : HirBase {
 // Types & Signatures
 struct HirTypedIdent : HirBase {
   Token name;
-  HirType type;
+  /// Type as written in source (semantic type on `HirBase::type`).
+  HirType hir_type;
 
-  HirTypedIdent(Token name_, HirType type_)
-      : name(name_), type(std::move(type_)) {};
+  HirTypedIdent(Token name_, HirType hir_type_)
+      : name(name_), hir_type(std::move(hir_type_)) {}
 };
 
 // Top-Level Items
 struct HirFnDef : HirBase {
   Token name;
-  std::vector<Token> generics;
   std::vector<HirTypedIdent> params;
   std::optional<HirType> return_type;
   HirBlock block;
@@ -230,7 +223,6 @@ struct HirFnDef : HirBase {
 
 struct HirStruct : HirBase {
   Token name;
-  std::vector<Token> generics;
   std::vector<HirTypedIdent> fields;
 
   static auto try_parse(Tokenizer &tokenizer)

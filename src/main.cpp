@@ -5,7 +5,7 @@
 #include <string>
 
 auto main(int argc, char **argv) -> int {
-  std::string filename = "./examples/test.jolt";
+  std::string filename = "./examples/values.jolt";
   
   if (argc > 1) {
     filename = argv[1];

@@ -1,0 +1,6 @@
+import modules::helper;
+
+fn main() i32 {
+    modules::helper::greet();
+    ret modules::helper::answer();
+}

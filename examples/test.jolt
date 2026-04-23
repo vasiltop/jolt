@@ -1,7 +1,0 @@
-import other::submod;
-import test2;
-
-fn main() i32 {
-	helper();
-	test2::other();
-}

@@ -1,0 +1,14 @@
+import math::constants;
+
+fn main() i32 {
+    let n = 42;
+    let s = "ok";
+    let c = 'z';
+    let ok = true;
+    let r = 1.5;
+		let small: u8 = 53 as u8;
+		let arr = [1, 2, 3, 4];
+		let ind = arr[n];
+		let m = math::constants::PI;
+    ret n + r + 15;
+}

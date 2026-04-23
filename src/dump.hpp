@@ -23,12 +23,6 @@ inline void print_hir(const HirExprLiteral &literal, int indent) {
             << type_to_string(literal.type) << "]\n";
 }
 
-inline void print_hir(const HirExprIdent &ident, int indent) {
-  print_indent(indent);
-  std::cout << "Ident: " << ident.tok.text << " [" << type_to_string(ident.type)
-            << "]\n";
-}
-
 inline void print_hir(const HirExprBinary &binary, int indent) {
   print_indent(indent);
   std::cout << "BinaryOp: " << binary.op.text << " ["
@@ -51,16 +45,6 @@ inline void print_hir(const HirExprPath &path_expr, int indent) {
     std::cout << path_expr.segments[i].text;
     if (i + 1 < path_expr.segments.size())
       std::cout << "::";
-  }
-  if (path_expr.generic_args) {
-    std::cout << "<";
-    for (size_t i = 0; i < path_expr.generic_args->size(); ++i) {
-      if (i) {
-        std::cout << ", ";
-      }
-      std::cout << (*path_expr.generic_args)[i]->to_string();
-    }
-    std::cout << ">";
   }
   std::cout << " [" << type_to_string(path_expr.type) << "]\n";
 }
@@ -106,7 +90,7 @@ inline void print_hir(const HirExprAs &as_expr, int indent) {
   std::cout << "Expr:\n";
   print_hir(*as_expr.expr, indent + 2);
   print_indent(indent + 1);
-  std::cout << "Type: " << as_expr.type.to_string() << "\n";
+  std::cout << "Type: " << as_expr.hir_type.to_string() << "\n";
 }
 
 inline void print_hir(const HirExprArray &array, int indent) {
@@ -151,7 +135,7 @@ inline void print_hir(const HirExprItem &item, int indent) {
 }
 inline void print_hir(const HirExprStruct &struct_expr, int indent) {
   print_indent(indent);
-  std::cout << "StructInit: " << struct_expr.type.to_string() << " ["
+  std::cout << "StructInit: " << struct_expr.hir_type.to_string() << " ["
             << type_to_string(struct_expr.HirBase::type) << "]\n";
   for (const auto &field : struct_expr.fields) {
     print_indent(indent + 1);
@@ -304,7 +288,7 @@ inline void print_hir(const HirFnDef &fn, int indent) {
 inline void print_hir(const HirTypedIdent &typed_ident, int indent) {
   print_indent(indent);
   std::cout << "TypedIdent: " << typed_ident.name.text << ": "
-            << typed_ident.type.to_string() << " ["
+            << typed_ident.hir_type.to_string() << " ["
             << type_to_string(typed_ident.HirBase::type) << "]\n";
 }
 

@@ -1,3 +1,0 @@
-fn three() i32 {
-	ret 0;
-}

@@ -1,0 +1,7 @@
+fn answer() i32 {
+    ret 42;
+}
+
+fn greet() void {
+    ret;
+}

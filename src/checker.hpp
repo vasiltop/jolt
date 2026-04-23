@@ -3,7 +3,9 @@
 #include "diagnostics.hpp"
 #include "errors.hpp"
 #include "hir.hpp"
+#include <memory>
 #include <set>
+#include <string>
 #include <string_view>
 #include <unordered_map>
 #include <vector>
@@ -18,6 +20,7 @@ struct Scope {
   std::unordered_map<std::string, HirStruct *> structs;
   std::unordered_map<std::string, HirEnum *> enums;
   std::unordered_map<std::string, HirLet *> variables;
+  std::unordered_map<std::string, HirTypedIdent *> fn_params;
 };
 
 class Checker {
@@ -41,7 +44,12 @@ private:
       const std::unordered_map<std::string, std::vector<std::string>> &edges,
       std::vector<Error> &errors) -> bool;
 
+  void scan_module_exports(const std::string &module_name,
+                           std::vector<Hir> &hir, Scope &scope,
+                           std::vector<Error> &errors);
+
   const std::unordered_map<std::string, ModuleSource> *sources_{nullptr};
+  std::unordered_map<std::string, std::unique_ptr<Scope>> module_scope_storage_;
   std::unordered_map<std::string, Scope *> module_global_scope;
 
   void check(HirStmt &stmt, std::vector<Error> &errors, Scope &scope);
@@ -57,7 +65,6 @@ private:
   void check(HirFor &for_stmt, std::vector<Error> &errors, Scope &scope);
   void check(HirExpr &expr, std::vector<Error> &errors, Scope &scope);
   void check(HirExprLiteral &literal, std::vector<Error> &errors, Scope &scope);
-  void check(HirExprIdent &ident, std::vector<Error> &errors, Scope &scope);
   void check(HirExprPath &path, std::vector<Error> &errors, Scope &scope);
   void check(HirExprBinary &binary, std::vector<Error> &errors, Scope &scope);
   void check(HirExprUnary &unary, std::vector<Error> &errors, Scope &scope);
@@ -71,7 +78,6 @@ private:
   void check(StructExprField &field, std::vector<Error> &errors, Scope &scope);
 
   void check(HirType &type, std::vector<Error> &errors, Scope &scope);
-  void check(HirTypePath &path, std::vector<Error> &errors, Scope &scope);
   void check(HirTypePtr &ptr, std::vector<Error> &errors, Scope &scope);
   void check(HirTypedIdent &typed, std::vector<Error> &errors, Scope &scope);
 
@@ -79,6 +85,31 @@ private:
   void check(HirStruct &strct, std::vector<Error> &errors, Scope &scope);
   void check(HirEnum &enm, std::vector<Error> &errors, Scope &scope);
   void check(HirImport &imp, std::vector<Error> &errors, Scope &scope);
+
+  const ModulesHir *all_modules_{nullptr};
+
+  static auto clone_type(const Type &t) -> Type;
+  auto hir_to_type(const HirType &ht, std::vector<Error> &errors,
+                   const Pos &pos, Scope &scope) -> std::optional<Type>;
+  auto function_type_for(const HirFnDef &fn, std::vector<Error> &errors,
+                         Scope &scope) -> std::optional<Type>;
+  static auto types_compatible(const Type &a, const Type &b) -> bool;
+
+  static auto lookup_let(Scope &scope, std::string_view name) -> HirLet *;
+  static auto lookup_param(Scope &scope, std::string_view name)
+      -> HirTypedIdent *;
+  static auto lookup_fn(Scope &scope, std::string_view name) -> HirFnDef *;
+  static auto lookup_struct(Scope &scope, std::string_view name) -> HirStruct *;
+  static auto lookup_enum(Scope &scope, std::string_view name) -> HirEnum *;
+
+  void resolve_path(HirExprPath &path, std::vector<Error> &errors,
+                    Scope &scope);
+  auto resolve_struct_named(const NamedType &named, Scope &scope)
+      -> HirStruct *;
+  auto resolve_enum_named(const NamedType &named, Scope &scope) -> HirEnum *;
+  auto type_of_field(HirStruct *st, std::string_view field,
+                     std::vector<Error> &errors, const Pos &pos, Scope &scope)
+      -> std::optional<Type>;
 
   std::string current_module_;
 };

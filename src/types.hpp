@@ -39,7 +39,7 @@ struct PointerType {
 
 struct ArrayType {
   std::unique_ptr<Type> element;
-  std::optional<std::size_t> size;
+  std::size_t size;
 };
 
 struct TupleType;
@@ -65,7 +65,6 @@ struct FunctionType {
 
 struct NamedType {
   std::vector<std::string> path;
-  std::vector<Type> generic_args;
 };
 
 inline std::string primitive_kind_string(PrimitiveKind k) {
@@ -123,7 +122,7 @@ inline std::string type_to_string(const Type &ty) {
         } else if constexpr (std::is_same_v<T, std::unique_ptr<ArrayType>>) {
           const auto &inner = type_to_string(*arg->element);
           if (arg->size)
-            return std::format("[{}; {}]", inner, *arg->size);
+            return std::format("[{}; {}]", inner, arg->size);
           return std::format("[{}]", inner);
         } else if constexpr (std::is_same_v<T, std::unique_ptr<TupleType>>) {
           std::string out = "(";
@@ -153,15 +152,6 @@ inline std::string type_to_string(const Type &ty) {
             if (i)
               out += "::";
             out += arg->path[i];
-          }
-          if (!arg->generic_args.empty()) {
-            out += "<";
-            for (size_t i = 0; i < arg->generic_args.size(); ++i) {
-              if (i)
-                out += ", ";
-              out += type_to_string(arg->generic_args[i]);
-            }
-            out += ">";
           }
           return out;
         }

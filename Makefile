@@ -1,4 +1,5 @@
 files := $(wildcard src/*.cpp src/*.hpp)
+source_files := $(wildcard src/*.cpp)
 compiler := g++
 out := bin/compiler
 version := c++23
@@ -6,7 +7,7 @@ libs :=
 
 $(out): $(files)
 	mkdir -p bin
-	$(compiler) -g src/*.cpp -o $(out) -std=$(version) $(libs)
+	$(compiler) -time -g $(source_files) -o $(out) -std=$(version) $(libs)
 
 clean:
 	rm -f ./bin/*
