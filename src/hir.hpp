@@ -16,8 +16,10 @@ struct HirBase {
 
 struct HirType;
 
+/// Type name: `T` (local) or `mod:Name` (module-qualified, single `:`).
 struct HirTypePath {
-  std::vector<Token> path;
+  std::optional<Token> module;
+  Token name;
 };
 
 struct HirTypePtr {
@@ -51,11 +53,20 @@ struct HirExprIndex : HirBase {
   std::unique_ptr<HirExpr> index;
 };
 
-// Stores any name lookup
+/// `name` or `mod:Symbol` (module prefix uses `:` only; `::` is for enum
+/// variants, see `HirExprEnumVariant`).
 struct HirExprPath : HirBase {
-  std::vector<Token> segments;
-  bool is_local() const { return segments.size() == 1; }
-  std::string primary_name() const { return segments[0].text; }
+  std::optional<Token> module;
+  Token name;
+  bool is_local() const { return !module.has_value(); }
+  std::string primary_name() const { return name.text; }
+};
+
+/// `Enum::variant` or `mod:Enum::variant`.
+struct HirExprEnumVariant : HirBase {
+  std::optional<Token> module;
+  Token enum_name;
+  Token variant;
 };
 
 // For structs or enums
@@ -106,12 +117,12 @@ struct HirExprStruct : HirBase {
   std::vector<StructExprField> fields;
 };
 
-using HirExprItem =
-    std::variant<HirExprLiteral, HirExprPath,
-                 std::unique_ptr<HirExprBinary>, std::unique_ptr<HirExprUnary>,
-                 std::unique_ptr<HirExprCall>, std::unique_ptr<HirExprIndex>,
-                 std::unique_ptr<HirExprMember>, std::unique_ptr<HirExprAs>,
-                 std::unique_ptr<HirExprArray>, std::unique_ptr<HirExprStruct>>;
+using HirExprItem = std::variant<
+    HirExprLiteral, HirExprPath, HirExprEnumVariant,
+    std::unique_ptr<HirExprBinary>, std::unique_ptr<HirExprUnary>,
+    std::unique_ptr<HirExprCall>, std::unique_ptr<HirExprIndex>,
+    std::unique_ptr<HirExprMember>, std::unique_ptr<HirExprAs>,
+    std::unique_ptr<HirExprArray>, std::unique_ptr<HirExprStruct>>;
 
 struct HirExpr : HirBase {
   HirExprItem item;
@@ -244,9 +255,16 @@ struct HirEnum : HirBase {
 };
 
 struct HirImport : HirBase {
-  std::vector<Token> path;
-  /// Filled by the parser: `ModulesHir` key for the resolved `.jolt` file.
+  /// Path string as written in source (quotes stripped).
+  std::string path;
+  /// Position of the path string (for cycle diagnostics).
+  Pos path_pos{1, 1, 0};
+  /// Name used for `name:item` (defaults to the imported file’s `module` name).
+  std::string import_alias;
+  /// Target module’s key in `ModulesHir` (from the file’s `module` line).
   std::string target_module;
+  /// Canonical absolute path to the imported file, set by the driver.
+  std::string resolved_path;
 
   static auto try_parse(Tokenizer &tokenizer)
       -> std::expected<HirImport, Error>;

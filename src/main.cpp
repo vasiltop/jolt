@@ -1,4 +1,5 @@
 #include "dump.hpp"
+#include "mir.hpp"
 #include "parser.hpp"
 #include <filesystem>
 #include <iostream>
@@ -6,7 +7,7 @@
 
 auto main(int argc, char **argv) -> int {
   std::string filename = "./examples/values.jolt";
-  
+
   if (argc > 1) {
     filename = argv[1];
   }
@@ -23,6 +24,8 @@ auto main(int argc, char **argv) -> int {
   }
 
   print_modules(parser.get_modules());
+
+  lower_hir(parser.get_modules());
 
   return 0;
 }

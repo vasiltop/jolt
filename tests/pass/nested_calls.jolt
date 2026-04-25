@@ -1,7 +1,0 @@
-fn inc(x: i32) i32 {
-    ret x + 1;
-}
-
-fn main() i32 {
-    ret inc(inc(5));
-}

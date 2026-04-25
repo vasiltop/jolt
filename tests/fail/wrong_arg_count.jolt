@@ -1,7 +1,0 @@
-fn f() void {
-    ret;
-}
-
-fn main() void {
-    f(1);
-}

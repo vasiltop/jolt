@@ -1,6 +1,0 @@
-fn main() i32 {
-    let n = 0;
-    n = n + 1;
-    n = n * 2;
-    ret n;
-}

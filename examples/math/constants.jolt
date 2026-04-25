@@ -1,1 +1,2 @@
+module constants;
 const PI = 3.14;

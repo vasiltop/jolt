@@ -1,3 +1,0 @@
-fn main() void {
-    let x: no_such_type = 1;
-}

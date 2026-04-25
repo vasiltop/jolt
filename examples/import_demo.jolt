@@ -1,6 +1,7 @@
-import modules::helper;
+module main;
+import "./modules/helper.jolt";
 
 fn main() i32 {
-    modules::helper::greet();
-    ret modules::helper::answer();
+    helper:greet();
+    ret helper:answer();
 }

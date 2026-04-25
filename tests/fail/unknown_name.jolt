@@ -1,3 +1,0 @@
-fn main() void {
-    not_a_binding();
-}

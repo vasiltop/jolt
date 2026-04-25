@@ -53,6 +53,7 @@ enum class TokenKind {
   True,
   If,
   Import,
+  Module,
   Null,
   Not,
   Or,
@@ -108,6 +109,7 @@ static constexpr std::string_view token_kind_string[] = {"invalid",
                                                          "true",
                                                          "if",
                                                          "import",
+                                                         "module",
                                                          "null",
                                                          "not",
                                                          "or",
@@ -122,17 +124,17 @@ static constexpr std::string_view token_kind_string[] = {"invalid",
                                                          "continue"};
 
 inline std::unordered_map<std::string_view, TokenKind> keywords{
-    {"fn", TokenKind::Fn},         {"ret", TokenKind::Ret},
-    {"let", TokenKind::Let},
-    {"while", TokenKind::While},   {"for", TokenKind::For},
-    {"if", TokenKind::If},         {"else", TokenKind::Else},
-    {"import", TokenKind::Import}, {"const", TokenKind::Const},
-    {"null", TokenKind::Null},     {"true", TokenKind::True},
-    {"false", TokenKind::False},   {"and", TokenKind::And},
-    {"or", TokenKind::Or},         {"not", TokenKind::Not},
-    {"struct", TokenKind::Struct}, {"enum", TokenKind::Enum},
-    {"as", TokenKind::As},
-    {"break", TokenKind::Break},   {"continue", TokenKind::Continue}};
+    {"fn", TokenKind::Fn},       {"ret", TokenKind::Ret},
+    {"let", TokenKind::Let},     {"while", TokenKind::While},
+    {"for", TokenKind::For},     {"if", TokenKind::If},
+    {"else", TokenKind::Else},       {"import", TokenKind::Import},
+    {"module", TokenKind::Module},
+    {"const", TokenKind::Const}, {"null", TokenKind::Null},
+    {"true", TokenKind::True},   {"false", TokenKind::False},
+    {"and", TokenKind::And},     {"or", TokenKind::Or},
+    {"not", TokenKind::Not},     {"struct", TokenKind::Struct},
+    {"enum", TokenKind::Enum},   {"as", TokenKind::As},
+    {"break", TokenKind::Break}, {"continue", TokenKind::Continue}};
 
 struct Token {
   Pos pos;

@@ -1,6 +1,0 @@
-import data::nums;
-import data::math;
-
-fn main() i32 {
-    ret data::math::twice(data::nums::K);
-}

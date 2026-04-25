@@ -8,13 +8,9 @@ auto HirType::to_string() const -> std::string {
       [](auto &&arg) -> std::string {
         using T = std::decay_t<decltype(arg)>;
         if constexpr (std::is_same_v<T, HirTypePath>) {
-          std::string res;
-          for (size_t i = 0; i < arg.path.size(); ++i) {
-            res += arg.path[i].text;
-            if (i + 1 < arg.path.size())
-              res += "::";
-          }
-          return res;
+          if (arg.module)
+            return std::format("{}:{}", arg.module->text, arg.name.text);
+          return arg.name.text;
         } else if constexpr (std::is_same_v<T, std::unique_ptr<HirTypePtr>>) {
           return "*" + arg->base->to_string();
         } else {
@@ -34,18 +30,23 @@ auto HirType::try_parse(Tokenizer &tokenizer) -> std::expected<HirType, Error> {
     return HirType{.item = std::move(ptr)};
   }
 
-  std::vector<Token> path;
-  while (true) {
-    auto part = tokenizer.expect_token_and_pop(TokenKind::Ident);
-    PROP_ERR(part);
-    path.push_back(*part);
+  auto first = tokenizer.expect_token_and_pop(TokenKind::Ident);
+  PROP_ERR(first);
 
+  if (tokenizer.peek().kind == TokenKind::Colon) {
+    const auto ck = tokenizer.checkpoint();
+    tokenizer.consume();
     if (tokenizer.peek().kind == TokenKind::Colon) {
-      tokenizer.consume();
-      auto second_colon = tokenizer.expect_token_and_pop(TokenKind::Colon);
-      PROP_ERR(second_colon);
+      tokenizer.restore(ck);
     } else {
-      break;
+      auto second = tokenizer.expect_token_and_pop(TokenKind::Ident);
+      PROP_ERR(second);
+      if (tokenizer.peek().kind == TokenKind::LessThan) {
+        return std::unexpected(tokenizer.make_error(
+            tokenizer.peek().pos,
+            "generics are not supported (unexpected `<` in type)"));
+      }
+      return HirType{.item = HirTypePath{.module = *first, .name = *second}};
     }
   }
 
@@ -55,7 +56,9 @@ auto HirType::try_parse(Tokenizer &tokenizer) -> std::expected<HirType, Error> {
         "generics are not supported (unexpected `<` in type)"));
   }
 
-  return HirType{.item = HirTypePath{.path = std::move(path)}};
+  return HirType{
+      .item = HirTypePath{.module = std::nullopt, .name = *first},
+  };
 }
 
 auto parse_postfix(Tokenizer &tokenizer, bool allow_struct_literal_after_path)
@@ -65,7 +68,27 @@ auto parse_postfix(Tokenizer &tokenizer, bool allow_struct_literal_after_path)
 
   for (;;) {
     auto next = tokenizer.peek();
-    if (next.kind == TokenKind::Dot) {
+    if (next.kind == TokenKind::Colon) {
+      tokenizer.consume();
+      if (tokenizer.peek().kind != TokenKind::Colon) {
+        return std::unexpected(tokenizer.make_error(
+            tokenizer.peek().pos,
+            "expected `::` (enum variant uses `::`, module uses a single `:`)"));
+      }
+      tokenizer.consume();
+      auto variant = tokenizer.expect_token_and_pop(TokenKind::Ident);
+      PROP_ERR(variant);
+      auto *path = std::get_if<HirExprPath>(&(*expr).item);
+      if (!path) {
+        return std::unexpected(tokenizer.make_error(
+            variant->pos, "expected a name (or `mod:Name`) before `::`"));
+      }
+      HirExprEnumVariant ev;
+      ev.module = path->module;
+      ev.enum_name = path->name;
+      ev.variant = *variant;
+      expr = HirExpr{.item = std::move(ev)};
+    } else if (next.kind == TokenKind::Dot) {
       tokenizer.consume();
       auto member = tokenizer.expect_token_and_pop(TokenKind::Ident);
       PROP_ERR(member);
@@ -153,27 +176,23 @@ auto parse_primary(Tokenizer &tokenizer, bool allow_struct_literal_after_path)
     return expr;
   } break;
   case TokenKind::Ident: {
-    std::vector<Token> type_path;
-    type_path.push_back(tok);
-
-    while (tokenizer.peek().kind == TokenKind::Colon) {
+    std::optional<Token> mod;
+    Token name = tok;
+    if (tokenizer.peek().kind == TokenKind::Colon) {
+      const auto ck = tokenizer.checkpoint();
       tokenizer.consume();
-      if (tokenizer.peek().kind != TokenKind::Colon) {
-        return std::unexpected(tokenizer.make_error(
-            tokenizer.peek().pos,
-            "a single `:` is not valid; use `::` for qualified paths"));
+      if (tokenizer.peek().kind == TokenKind::Colon) {
+        tokenizer.restore(ck);
+        // `::` (enum variant) is handled in `parse_postfix`, not as `mod:`.
+      } else {
+        mod = name;
+        auto sym = tokenizer.expect_token_and_pop(TokenKind::Ident);
+        PROP_ERR(sym);
+        name = *sym;
       }
-      tokenizer.consume();
-      auto next_ident = tokenizer.expect_token_and_pop(TokenKind::Ident);
-      if (!next_ident)
-        return std::unexpected(next_ident.error());
-
-      type_path.push_back(*next_ident);
     }
 
-    // Struct initialization: `A {`, `a::A {`, …
-    // In `if` / `while` / `for` conditions, `if cond {` must not parse `cond {`
-    // as a struct literal; use `(Type { ... })` when a literal is the condition.
+    // Struct init: `T {` or `mod:Type {` …
     if (allow_struct_literal_after_path &&
         tokenizer.peek().kind == TokenKind::BraceOpen) {
       tokenizer.consume();
@@ -205,13 +224,14 @@ auto parse_primary(Tokenizer &tokenizer, bool allow_struct_literal_after_path)
 
       auto struct_expr = std::make_unique<HirExprStruct>();
       struct_expr->hir_type =
-          HirType{.item = HirTypePath{.path = std::move(type_path)}};
+          HirType{.item = HirTypePath{.module = std::move(mod), .name = name}};
       struct_expr->fields = std::move(fields);
       return HirExpr{.item = std::move(struct_expr)};
     }
 
-    auto path_expr = HirExprPath{.segments = std::move(type_path)};
-    return HirExpr{.item = std::move(path_expr)};
+    return HirExpr{
+        .item = HirExprPath{.module = std::move(mod), .name = name},
+    };
   } break;
   case TokenKind::BracketOpen: {
     std::vector<HirExpr> elements;
@@ -238,9 +258,8 @@ auto parse_primary(Tokenizer &tokenizer, bool allow_struct_literal_after_path)
   default:
     std::string type(token_kind_string[static_cast<size_t>(tok.kind)]);
     return std::unexpected(tokenizer.make_error(
-        tok.pos,
-        std::format("expression syntax not implemented for `{}` ({})", tok.text,
-                    type)));
+        tok.pos, std::format("expression syntax not implemented for `{}` ({})",
+                             tok.text, type)));
   }
 
   return std::unexpected(
@@ -306,7 +325,8 @@ auto HirReturn::try_parse(Tokenizer &tokenizer)
   return HirReturn{.expression = std::move(expr)};
 }
 
-auto HirBreak::try_parse(Tokenizer &tokenizer) -> std::expected<HirBreak, Error> {
+auto HirBreak::try_parse(Tokenizer &tokenizer)
+    -> std::expected<HirBreak, Error> {
   auto kw = tokenizer.expect_token_and_pop(TokenKind::Break);
   PROP_ERR(kw);
   auto semi = tokenizer.expect_token_and_pop(TokenKind::Semicolon);
@@ -603,35 +623,24 @@ auto HirEnum::try_parse(Tokenizer &tokenizer) -> std::expected<HirEnum, Error> {
   return HirEnum{.name = *name_tok, .variants = variants};
 }
 
+static auto strip_string_quotes(std::string s) -> std::string {
+  if (s.size() >= 2 && s.front() == '"' && s.back() == '"') {
+    s = s.substr(1, s.size() - 2);
+  }
+  return s;
+}
+
 auto HirImport::try_parse(Tokenizer &tokenizer)
     -> std::expected<HirImport, Error> {
-  tokenizer.expect_token_and_pop(TokenKind::Import);
+  auto imp = tokenizer.expect_token_and_pop(TokenKind::Import);
+  PROP_ERR(imp);
 
-  std::vector<Token> path;
-  bool only_relative = true;
+  auto path_tok = tokenizer.expect_token_and_pop(TokenKind::String);
+  PROP_ERR(path_tok);
 
-  while (true) {
-    auto next = tokenizer.peek();
-    if (only_relative && next.kind == TokenKind::DotDot) {
-      path.push_back(tokenizer.consume());
-    } else if (only_relative && next.kind == TokenKind::Dot) {
-      path.push_back(tokenizer.consume());
-    } else {
-      auto part = tokenizer.expect_token_and_pop(TokenKind::Ident);
-      PROP_ERR(part);
-      path.push_back(*part);
-      only_relative = false;
-    }
+  auto semi = tokenizer.expect_token_and_pop(TokenKind::Semicolon);
+  PROP_ERR(semi);
 
-    if (tokenizer.peek().kind == TokenKind::Colon) {
-      tokenizer.consume();
-      auto second_colon = tokenizer.expect_token_and_pop(TokenKind::Colon);
-      PROP_ERR(second_colon);
-    } else {
-      break;
-    }
-  }
-
-  tokenizer.expect_token_and_pop(TokenKind::Semicolon);
-  return HirImport{.path = std::move(path)};
+  return HirImport{.path = strip_string_quotes(std::string(path_tok->text)),
+                   .path_pos = path_tok->pos};
 }

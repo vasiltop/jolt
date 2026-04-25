@@ -1,3 +1,5 @@
+module helper;
+
 fn answer() i32 {
     ret 42;
 }

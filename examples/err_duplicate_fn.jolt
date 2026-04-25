@@ -1,3 +1,5 @@
+module err_duplicate_fn;
+
 fn dup() i32 {
     ret 0;
 }

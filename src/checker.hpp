@@ -66,6 +66,7 @@ private:
   void check(HirExpr &expr, std::vector<Error> &errors, Scope &scope);
   void check(HirExprLiteral &literal, std::vector<Error> &errors, Scope &scope);
   void check(HirExprPath &path, std::vector<Error> &errors, Scope &scope);
+  void check(HirExprEnumVariant &ev, std::vector<Error> &errors, Scope &scope);
   void check(HirExprBinary &binary, std::vector<Error> &errors, Scope &scope);
   void check(HirExprUnary &unary, std::vector<Error> &errors, Scope &scope);
   void check(HirExprIndex &index, std::vector<Error> &errors, Scope &scope);
@@ -104,9 +105,14 @@ private:
 
   void resolve_path(HirExprPath &path, std::vector<Error> &errors,
                     Scope &scope);
-  auto resolve_struct_named(const NamedType &named, Scope &scope)
-      -> HirStruct *;
-  auto resolve_enum_named(const NamedType &named, Scope &scope) -> HirEnum *;
+  void resolve_expr_enum_variant(HirExprEnumVariant &ev, std::vector<Error> &errors,
+                                 Scope &scope);
+  auto resolve_struct_named(const NamedType &named, std::vector<Error> &errors,
+                            const Pos &pos, Scope &scope) -> HirStruct *;
+  auto resolve_enum_named(const NamedType &named, std::vector<Error> &errors,
+                          const Pos &pos, Scope &scope) -> HirEnum *;
+  auto scope_for_imported_module(Scope &scope, std::string_view alias)
+      -> Scope *;
   auto type_of_field(HirStruct *st, std::string_view field,
                      std::vector<Error> &errors, const Pos &pos, Scope &scope)
       -> std::optional<Type>;

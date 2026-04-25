@@ -147,13 +147,13 @@ inline std::string type_to_string(const Type &ty) {
             out += " -> void";
           return out;
         } else if constexpr (std::is_same_v<T, std::unique_ptr<NamedType>>) {
-          std::string out;
-          for (size_t i = 0; i < arg->path.size(); ++i) {
-            if (i)
-              out += "::";
-            out += arg->path[i];
+          if (arg->path.size() == 2) {
+            return std::format("{}:{}", arg->path[0], arg->path[1]);
           }
-          return out;
+          if (arg->path.size() == 1) {
+            return arg->path[0];
+          }
+          return "<?>";
         }
         return "<?>";
       },

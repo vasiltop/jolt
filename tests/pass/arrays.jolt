@@ -1,5 +1,0 @@
-fn main() i32 {
-    let arr = [10, 20, 30];
-    let i = 1;
-    ret arr[i];
-}

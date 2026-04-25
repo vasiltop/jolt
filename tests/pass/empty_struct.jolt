@@ -1,5 +1,0 @@
-struct Empty {
-}
-
-fn main() void {
-}

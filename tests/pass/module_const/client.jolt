@@ -1,5 +1,0 @@
-import data::nums;
-
-fn main() i32 {
-    ret data::nums::K;
-}

@@ -41,12 +41,20 @@ inline void print_hir(const HirExprUnary &unary, int indent) {
 inline void print_hir(const HirExprPath &path_expr, int indent) {
   print_indent(indent);
   std::cout << "Path: ";
-  for (size_t i = 0; i < path_expr.segments.size(); ++i) {
-    std::cout << path_expr.segments[i].text;
-    if (i + 1 < path_expr.segments.size())
-      std::cout << "::";
-  }
+  if (path_expr.module) {
+    std::cout << path_expr.module->text << ":" << path_expr.name.text;
+  } else
+    std::cout << path_expr.name.text;
   std::cout << " [" << type_to_string(path_expr.type) << "]\n";
+}
+
+inline void print_hir(const HirExprEnumVariant &ev, int indent) {
+  print_indent(indent);
+  std::cout << "EnumVariant: ";
+  if (ev.module)
+    std::cout << ev.module->text << ":";
+  std::cout << ev.enum_name.text << "::" << ev.variant.text << " ["
+            << type_to_string(ev.type) << "]\n";
 }
 
 inline void print_hir(const HirExprCall &call, int indent) {
@@ -121,8 +129,6 @@ inline void print_hir(const HirExprItem &item, int indent) {
         } else if constexpr (std::is_same_v<T, std::unique_ptr<HirExprAs>>) {
           print_hir(*arg, indent);
         } else if constexpr (std::is_same_v<T, std::unique_ptr<HirExprArray>>) {
-          print_hir(*arg, indent);
-        } else if constexpr (std::is_same_v<T, std::unique_ptr<HirExprPath>>) {
           print_hir(*arg, indent);
         } else if constexpr (std::is_same_v<T,
                                             std::unique_ptr<HirExprStruct>>) {
@@ -313,12 +319,8 @@ inline void print_hir(const HirEnum &enm, int indent) {
 
 inline void print_hir(const HirImport &import_, int indent) {
   print_indent(indent);
-  std::cout << "Import: ";
-  for (size_t i = 0; i < import_.path.size(); ++i) {
-    std::cout << import_.path[i].text;
-    if (i + 1 < import_.path.size())
-      std::cout << "::";
-  }
+  std::cout << "Import: \"" << import_.path << "\" as `" << import_.import_alias
+            << "`";
   if (!import_.target_module.empty())
     std::cout << " -> " << import_.target_module;
   std::cout << " [" << type_to_string(import_.type) << "]\n";

@@ -1,8 +1,9 @@
-import math::geometry;
+module types_shapes;
+import "./math/geometry.jolt";
 
 struct MyStruct {
     field1: i32;
-    field2: *math::geometry::Vector;
+    field2: *geometry:Vector;
     field3: **i64;
 }
 
@@ -11,7 +12,8 @@ enum ShapeKind {
     Field2,
 }
 
-fn use_vec(val: *math::geometry::Vector) *i32 {
+fn use_vec(val: *geometry:Vector) *i32 {
+    let k = ShapeKind::Field1;
     let x: *i32 = null;
     let y = x as *i64;
     ret x;
