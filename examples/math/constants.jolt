@@ -1,2 +1,11 @@
 module constants;
 const PI = 3.14;
+
+struct V3 {
+	x: real; y: real; z: real;
+}
+
+enum Idk {
+	First,
+	Second,
+}

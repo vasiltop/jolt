@@ -11,11 +11,13 @@ fn main() i32 {
 		let arr = [1, 2, 3, 4];
 		let ind = arr[n];
 		let m = constants:PI;
-
 		let afds = true;
 
-		if afds {
-			ret 0;
-		}
+		let vector = constants:V3 {
+				x: 0.0, y: 0.0, z: 0.0
+		};
+
+		let idk = constants:Idk::First;
+
     ret n + r + 15;
 }

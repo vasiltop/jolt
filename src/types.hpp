@@ -64,7 +64,8 @@ struct FunctionType {
 };
 
 struct NamedType {
-  std::vector<std::string> path;
+  std::optional<std::string> module;
+  std::string name;
 };
 
 inline std::string primitive_kind_string(PrimitiveKind k) {
@@ -147,13 +148,11 @@ inline std::string type_to_string(const Type &ty) {
             out += " -> void";
           return out;
         } else if constexpr (std::is_same_v<T, std::unique_ptr<NamedType>>) {
-          if (arg->path.size() == 2) {
-            return std::format("{}:{}", arg->path[0], arg->path[1]);
+          if (arg->module) {
+            return std::format("{}:{}", *(arg->module), arg->name);
           }
-          if (arg->path.size() == 1) {
-            return arg->path[0];
-          }
-          return "<?>";
+
+          return arg->name;
         }
         return "<?>";
       },

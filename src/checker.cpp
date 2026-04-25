@@ -188,7 +188,8 @@ auto clone_type_impl(const Type &ty) -> Type {
           return Type{.data = std::move(f)};
         } else if constexpr (std::is_same_v<T, std::unique_ptr<NamedType>>) {
           auto n = std::make_unique<NamedType>();
-          n->path = arg->path;
+          n->module = arg->module;
+          n->name = arg->name;
           return Type{.data = std::move(n)};
         }
 
@@ -316,9 +317,8 @@ auto Checker::hir_to_type(const HirType &ht, std::vector<Error> &errors,
             if (auto pk = primitive_from_text(nm))
               return type_from_primitive_kind(*pk);
             if (lookup_struct(scope, nm) || lookup_enum(scope, nm)) {
-              std::vector<std::string> path{nm};
               return Type{std::make_unique<NamedType>(
-                  NamedType{.path = std::move(path)})};
+                  NamedType{.name = std::move(nm)})};
             }
             this->add_error(errors, pos, std::format("unknown type `{}`", nm));
             return std::nullopt;
@@ -328,11 +328,11 @@ auto Checker::hir_to_type(const HirType &ht, std::vector<Error> &errors,
             if (lookup_struct(*ms, nm) || lookup_enum(*ms, nm)) {
               std::vector<std::string> path{mod, nm};
               return Type{std::make_unique<NamedType>(
-                  NamedType{.path = std::move(path)})};
+                  NamedType{.module = mod, .name = std::move(nm)})};
             }
           }
           this->add_error(errors, pos,
-                            std::format("unknown type `{}:{}`", mod, nm));
+                          std::format("unknown type `{}:{}`", mod, nm));
           return std::nullopt;
         } else if constexpr (std::is_same_v<T, std::unique_ptr<HirTypePtr>>) {
           if (!arg || !arg->base)
@@ -391,38 +391,28 @@ auto Checker::scope_for_imported_module(Scope &scope, std::string_view alias)
 auto Checker::resolve_struct_named(const NamedType &named,
                                    std::vector<Error> &errors, const Pos &pos,
                                    Scope &scope) -> HirStruct * {
-  if (named.path.empty()) {
-    add_error(errors, pos, "empty struct name");
-    return nullptr;
+  if (!named.module)
+    return lookup_struct(scope, named.name);
+
+  if (Scope *ms = scope_for_imported_module(scope, *named.module)) {
+    if (HirStruct *s = lookup_struct(*ms, named.name))
+      return s;
   }
-  if (named.path.size() == 1)
-    return lookup_struct(scope, named.path[0]);
-  if (named.path.size() == 2) {
-    if (Scope *ms = scope_for_imported_module(scope, named.path[0])) {
-      if (HirStruct *s = lookup_struct(*ms, named.path[1]))
-        return s;
-    }
-  } else
-    add_error(errors, pos, "invalid named type (use `name` or `mod:Name`)");
+
   return nullptr;
 }
 
 auto Checker::resolve_enum_named(const NamedType &named,
                                  std::vector<Error> &errors, const Pos &pos,
                                  Scope &scope) -> HirEnum * {
-  if (named.path.empty()) {
-    add_error(errors, pos, "empty enum name");
-    return nullptr;
+  if (!named.module)
+    return lookup_enum(scope, named.name);
+
+  if (Scope *ms = scope_for_imported_module(scope, *named.module)) {
+    if (HirEnum *e = lookup_enum(*ms, named.name))
+      return e;
   }
-  if (named.path.size() == 1)
-    return lookup_enum(scope, named.path[0]);
-  if (named.path.size() == 2) {
-    if (Scope *ms = scope_for_imported_module(scope, named.path[0])) {
-      if (HirEnum *e = lookup_enum(*ms, named.path[1]))
-        return e;
-    }
-  } else
-    add_error(errors, pos, "invalid named type (use `name` or `mod:Name`)");
+
   return nullptr;
 }
 
@@ -464,9 +454,8 @@ void Checker::resolve_path(HirExprPath &path, std::vector<Error> &errors,
       return;
     }
     if (lookup_struct(*ms, n) || lookup_enum(*ms, n)) {
-      std::vector<std::string> p{m, n};
       path.type =
-          Type{std::make_unique<NamedType>(NamedType{.path = std::move(p)})};
+          Type{std::make_unique<NamedType>(NamedType{.module = m, .name = n})};
       return;
     }
     add_error(errors, path.name.pos,
@@ -484,9 +473,9 @@ void Checker::resolve_path(HirExprPath &path, std::vector<Error> &errors,
     if (l->HirBase::type)
       path.type = clone_type(*l->HirBase::type);
     else
-      add_error(errors, path.name.pos,
-                std::format("cannot infer type of `{}` before initialization",
-                            n));
+      add_error(
+          errors, path.name.pos,
+          std::format("cannot infer type of `{}` before initialization", n));
     return;
   }
   if (auto *f = lookup_fn(scope, n)) {
@@ -495,15 +484,11 @@ void Checker::resolve_path(HirExprPath &path, std::vector<Error> &errors,
     return;
   }
   if (lookup_struct(scope, n)) {
-    std::vector<std::string> p{n};
-    path.type =
-        Type{std::make_unique<NamedType>(NamedType{.path = std::move(p)})};
+    path.type = Type{std::make_unique<NamedType>(NamedType{.name = n})};
     return;
   }
   if (lookup_enum(scope, n)) {
-    std::vector<std::string> p{n};
-    path.type =
-        Type{std::make_unique<NamedType>(NamedType{.path = std::move(p)})};
+    path.type = Type{std::make_unique<NamedType>(NamedType{.name = n})};
     return;
   }
   add_error(errors, path.name.pos, std::format("unknown name `{}`", n));
@@ -536,13 +521,12 @@ void Checker::resolve_expr_enum_variant(HirExprEnumVariant &ev,
     }
   }
   if (!ok) {
-    add_error(
-        errors, ev.variant.pos,
-        std::format("enum `{}` has no variant `{}`", en->name.text, ev.variant.text));
+    add_error(errors, ev.variant.pos,
+              std::format("enum `{}` has no variant `{}`", en->name.text,
+                          ev.variant.text));
     return;
   }
-  std::vector<std::string> p{en->name.text};
-  ev.type = Type{std::make_unique<NamedType>(NamedType{.path = std::move(p)})};
+  ev.type = Type{std::make_unique<NamedType>(NamedType{.name = en->name.text})};
 }
 
 auto Checker::collect_import_edges(const ModulesHir &modules)
@@ -940,7 +924,8 @@ void Checker::check(HirExprMember &member, std::vector<Error> &errors,
     return;
   }
 
-  HirStruct *st = resolve_struct_named(**named, errors, member.member.pos, scope);
+  HirStruct *st =
+      resolve_struct_named(**named, errors, member.member.pos, scope);
   if (!st) {
     add_error(errors, member.member.pos,
               "unknown struct type for field access");
@@ -1031,9 +1016,9 @@ void Checker::check(HirExprStruct &struct_expr, std::vector<Error> &errors,
 
   const auto *named =
       std::get_if<std::unique_ptr<NamedType>>(&struct_expr.type->data);
-  HirStruct *st = named
-                        ? resolve_struct_named(**named, errors, Pos{1, 1, 0}, scope)
-                        : nullptr;
+  HirStruct *st =
+      named ? resolve_struct_named(**named, errors, Pos{1, 1, 0}, scope)
+            : nullptr;
   if (!st) {
     for (auto &f : struct_expr.fields)
       check(f, errors, scope);
