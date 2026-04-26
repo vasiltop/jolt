@@ -18,16 +18,80 @@ struct LlirAlloca {
 };
 
 struct LlirStore {
-  std::string var_name;
-  LlirOperand op;
+  LlirOperand dest;
+  LlirOperand value;
 };
 
 struct LlirLoad {
   std::string dest_reg;
-  std::string src_var;
+  LlirOperand src;
 };
 
-using LlirInstruction = std::variant<LlirAlloca, LlirStore, LlirLoad>;
+struct LlirBinaryOp {
+  enum {
+    Add,
+    Sub,
+    Mul,
+    Div,
+    Mod,
+    And,
+    Or,
+    Xor,
+    Shl,
+    Shr,
+    Eq,
+    Ne,
+    Lt,
+    Gt,
+    Le,
+    Ge
+  } op;
+  std::string dest_reg;
+  LlirOperand lhs;
+  LlirOperand rhs;
+};
+
+struct LlirUnaryOp {
+  enum { Neg, Not } op;
+  std::string dest_reg;
+  LlirOperand src;
+};
+
+struct LlirBranch {
+  std::string target_branch;
+};
+
+struct LlirCondBranch {
+  LlirOperand condition; // register that contains bool
+  std::string true_label;
+  std::string false_label;
+};
+
+struct LlirReturn {
+  std::optional<LlirOperand> value;
+};
+
+struct LlirGetElement {
+  std::string dest_reg;
+  LlirOperand base;
+  LlirOperand index;
+};
+
+struct LlirCall {
+  std::string func_name;
+  std::vector<LlirOperand> args;
+};
+
+struct LlirCast {
+  std::string dest_reg;
+  LlirOperand source;
+  Type target_type;
+};
+
+using LlirInstruction =
+    std::variant<LlirAlloca, LlirStore, LlirLoad, LlirBinaryOp, LlirUnaryOp,
+                 LlirBranch, LlirCondBranch, LlirReturn, LlirGetElement,
+                 LlirCall, LlirCast>;
 
 struct LlirBlock {
   std::string label;
@@ -40,6 +104,17 @@ struct LlirFunction {
   std::vector<LlirBlock> blocks;
 };
 
+struct LlirGlobal {
+  std::string name;
+  Type type;
+  LlirOperandData initial_value;
+  bool is_constant;
+};
+
 auto lower_hir(const ModulesHir &modules) -> void;
 
-using Llir = std::variant<LlirFunction>;
+struct LlirModule {
+  std::string name;
+  std::vector<LlirGlobal> globals;
+  std::vector<LlirFunction> functions;
+};
