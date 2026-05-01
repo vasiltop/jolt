@@ -1,13 +1,17 @@
+#pragma once
+
 #include "hir.hpp"
 #include "types.hpp"
 #include <cstdint>
+#include <optional>
+#include <string>
+#include <variant>
+#include <vector>
 
 using LlirOperandData = std::variant<std::string, int64_t, double, char, bool>;
 
 struct LlirOperand {
-  enum { Local, Register, Literal } kind;
-  // If this is a Local variable or Register identifier, 'data' will store the
-  // name. Otherwise, it will store the literal value.
+  enum { Local, Register, Global, Literal } kind;
   LlirOperandData data;
   Type type;
 };
@@ -27,8 +31,38 @@ struct LlirLoad {
   LlirOperand src;
 };
 
+struct LlirAddrOf {
+  std::string dest_reg;
+  std::string local_slot;
+};
+
+struct LlirIndexedStore {
+  LlirOperand array_slot;
+  LlirOperand index;
+  LlirOperand value;
+};
+
+struct LlirFieldLoad {
+  std::string dest_reg;
+  LlirOperand object;
+  std::string field;
+};
+
+struct LlirFieldStore {
+  LlirOperand object;
+  std::string field;
+  LlirOperand value;
+};
+
+/// Address of a struct field (`&agg.field`). `object` refers to aggregate storage (Local slot).
+struct LlirFieldAddr {
+  std::string dest_reg;
+  LlirOperand object;
+  std::string field;
+};
+
 struct LlirBinaryOp {
-  enum {
+  enum Kind {
     Add,
     Sub,
     Mul,
@@ -45,14 +79,16 @@ struct LlirBinaryOp {
     Gt,
     Le,
     Ge
-  } op;
+  };
+  Kind op;
   std::string dest_reg;
   LlirOperand lhs;
   LlirOperand rhs;
 };
 
 struct LlirUnaryOp {
-  enum { Neg, Not } op;
+  enum Kind { Neg, Not };
+  Kind op;
   std::string dest_reg;
   LlirOperand src;
 };
@@ -62,7 +98,7 @@ struct LlirBranch {
 };
 
 struct LlirCondBranch {
-  LlirOperand condition; // register that contains bool
+  LlirOperand condition;
   std::string true_label;
   std::string false_label;
 };
@@ -80,6 +116,7 @@ struct LlirGetElement {
 struct LlirCall {
   std::string func_name;
   std::vector<LlirOperand> args;
+  std::optional<std::string> dest_reg;
 };
 
 struct LlirCast {
@@ -89,7 +126,9 @@ struct LlirCast {
 };
 
 using LlirInstruction =
-    std::variant<LlirAlloca, LlirStore, LlirLoad, LlirBinaryOp, LlirUnaryOp,
+    std::variant<LlirAlloca, LlirStore, LlirLoad, LlirAddrOf, LlirIndexedStore,
+                 LlirFieldLoad, LlirFieldStore, LlirFieldAddr, LlirBinaryOp,
+                 LlirUnaryOp,
                  LlirBranch, LlirCondBranch, LlirReturn, LlirGetElement,
                  LlirCall, LlirCast>;
 
@@ -98,9 +137,16 @@ struct LlirBlock {
   std::vector<LlirInstruction> instructions;
 };
 
+struct LlirParam {
+  std::string name;
+  /// Human-readable signature fragment (HIR type text or semantic print).
+  std::string type_display;
+};
+
 struct LlirFunction {
   std::string name;
   Type return_type;
+  std::vector<LlirParam> params;
   std::vector<LlirBlock> blocks;
 };
 
@@ -111,10 +157,9 @@ struct LlirGlobal {
   bool is_constant;
 };
 
-auto lower_hir(const ModulesHir &modules) -> void;
-
 struct LlirModule {
-  std::string name;
   std::vector<LlirGlobal> globals;
   std::vector<LlirFunction> functions;
 };
+
+auto lower_hir(const ModulesHir &modules) -> LlirModule;

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "hir.hpp"
+#include "llir.hpp"
 #include <iostream>
 
 inline void print_indent(int indent) {
@@ -338,3 +339,183 @@ inline void print_modules(const ModulesHir &modules) {
     }
   }
 }
+
+inline void print_llir_operand_kind(int indent, const LlirOperand &op) {
+  print_indent(indent);
+  const char *k = "?";
+  if (op.kind == LlirOperand::Local)
+    k = "local";
+  else if (op.kind == LlirOperand::Register)
+    k = "reg";
+  else if (op.kind == LlirOperand::Global)
+    k = "global";
+  else if (op.kind == LlirOperand::Literal)
+    k = "literal";
+  std::visit(
+      [&](const auto &v) {
+        using T = std::decay_t<decltype(v)>;
+        if constexpr (std::is_same_v<T, std::string>)
+          std::cout << k << ": \"" << v << "\" " << type_to_string(op.type) << "\n";
+        else if constexpr (std::is_same_v<T, int64_t>)
+          std::cout << k << ": " << v << " " << type_to_string(op.type) << "\n";
+        else if constexpr (std::is_same_v<T, double>)
+          std::cout << k << ": " << v << " " << type_to_string(op.type) << "\n";
+        else if constexpr (std::is_same_v<T, char>)
+          std::cout << k << ": '" << v << "' " << type_to_string(op.type) << "\n";
+        else if constexpr (std::is_same_v<T, bool>)
+          std::cout << k << ": " << (v ? "true" : "false") << " "
+                    << type_to_string(op.type) << "\n";
+      },
+      op.data);
+}
+
+inline void print_llir_inst(const LlirInstruction &ins, int indent) {
+  print_indent(indent);
+  std::visit(
+      overloaded{
+          [&](const LlirAlloca &x) {
+            std::cout << "alloca " << x.var_name << " "
+                      << type_to_string(x.type) << "\n";
+          },
+          [&](const LlirStore &x) {
+            std::cout << "store "
+                      << [&] {
+                           if (x.dest.kind == LlirOperand::Local)
+                             return "local:" +
+                                    std::get<std::string>(x.dest.data);
+                           if (x.dest.kind == LlirOperand::Global)
+                             return "global:" +
+                                    std::get<std::string>(x.dest.data);
+                           return std::string("dest");
+                         }()
+                      << "\n";
+            print_llir_operand_kind(indent + 1, x.value);
+          },
+          [&](const LlirLoad &x) {
+            std::cout << "load " << x.dest_reg << " <-\n";
+            print_llir_operand_kind(indent + 1, x.src);
+          },
+          [&](const LlirAddrOf &x) {
+            std::cout << "addrof " << x.dest_reg << " &" << x.local_slot << "\n";
+          },
+          [&](const LlirIndexedStore &x) {
+            std::cout << "indexed_store\n";
+            print_indent(indent + 1);
+            std::cout << "array:\n";
+            print_llir_operand_kind(indent + 2, x.array_slot);
+            print_indent(indent + 1);
+            std::cout << "index:\n";
+            print_llir_operand_kind(indent + 2, x.index);
+            print_indent(indent + 1);
+            std::cout << "value:\n";
+            print_llir_operand_kind(indent + 2, x.value);
+          },
+          [&](const LlirFieldLoad &x) {
+            std::cout << "field_load " << x.dest_reg << " ." << x.field << "\n";
+            print_llir_operand_kind(indent + 1, x.object);
+          },
+          [&](const LlirFieldStore &x) {
+            std::cout << "field_store ." << x.field << "\n";
+            print_llir_operand_kind(indent + 1, x.object);
+            print_llir_operand_kind(indent + 1, x.value);
+          },
+          [&](const LlirFieldAddr &x) {
+            std::cout << "field_addr " << x.dest_reg << " ." << x.field << "\n";
+            print_llir_operand_kind(indent + 1, x.object);
+          },
+          [&](const LlirBinaryOp &x) {
+            std::cout << "binop " << static_cast<int>(x.op) << " "
+                      << x.dest_reg << "\n";
+            print_llir_operand_kind(indent + 1, x.lhs);
+            print_llir_operand_kind(indent + 1, x.rhs);
+          },
+          [&](const LlirUnaryOp &x) {
+            std::cout << "unary " << static_cast<int>(x.op) << " "
+                      << x.dest_reg << "\n";
+            print_llir_operand_kind(indent + 1, x.src);
+          },
+          [&](const LlirBranch &x) {
+            std::cout << "branch " << x.target_branch << "\n";
+          },
+          [&](const LlirCondBranch &x) {
+            std::cout << "cond_branch " << x.true_label << " / "
+                      << x.false_label << "\n";
+            print_llir_operand_kind(indent + 1, x.condition);
+          },
+          [&](const LlirReturn &x) {
+            std::cout << "return";
+            if (x.value)
+              std::cout << "\n";
+            else {
+              std::cout << " void\n";
+              return;
+            }
+            print_llir_operand_kind(indent + 1, *x.value);
+          },
+          [&](const LlirGetElement &x) {
+            std::cout << "getelem " << x.dest_reg << "\n";
+            print_llir_operand_kind(indent + 1, x.base);
+            print_llir_operand_kind(indent + 1, x.index);
+          },
+          [&](const LlirCall &x) {
+            std::cout << "call " << x.func_name;
+            if (x.dest_reg)
+              std::cout << " -> " << *x.dest_reg;
+            std::cout << "\n";
+            for (const auto &a : x.args)
+              print_llir_operand_kind(indent + 1, a);
+          },
+          [&](const LlirCast &x) {
+            std::cout << "cast " << x.dest_reg << " as "
+                      << type_to_string(x.target_type) << "\n";
+            print_llir_operand_kind(indent + 1, x.source);
+          },
+      },
+      ins);
+}
+
+inline void print_llir_block(const LlirBlock &blk, int indent) {
+  print_indent(indent);
+  std::cout << "block " << blk.label << "\n";
+  for (const auto &i : blk.instructions)
+    print_llir_inst(i, indent + 1);
+}
+
+inline void print_llir_function(const LlirFunction &f, int indent) {
+  print_indent(indent);
+  std::cout << "fn " << f.name << " -> "
+            << type_to_string(f.return_type) << "\n";
+  print_indent(indent + 1);
+  std::cout << "params:\n";
+  for (const auto &p : f.params) {
+    print_indent(indent + 2);
+    std::cout << p.name << ": " << p.type_display << "\n";
+  }
+  for (const auto &b : f.blocks)
+    print_llir_block(b, indent + 1);
+}
+
+inline void print_llir_global(const LlirGlobal &g, int indent) {
+  print_indent(indent);
+  std::cout << (g.is_constant ? "global const " : "global ") << g.name << " "
+            << type_to_string(g.type) << " = ";
+  std::visit(
+      overloaded{
+          [](const std::string &s) { std::cout << "\"" << s << "\""; },
+          [](int64_t v) { std::cout << v; },
+          [](double v) { std::cout << v; },
+          [](char v) { std::cout << "'" << v << "'"; },
+          [](bool v) { std::cout << (v ? "true" : "false"); }},
+      g.initial_value);
+  std::cout << "\n";
+}
+
+inline void print_llir(const LlirModule &m) {
+  std::cout << "---- LLIR ----\n";
+  for (const auto &gl : m.globals)
+    print_llir_global(gl, 1);
+  for (const auto &fn : m.functions)
+    print_llir_function(fn, 1);
+  std::cout << "--------------\n";
+}
+

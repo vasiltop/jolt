@@ -25,7 +25,8 @@ auto main(int argc, char **argv) -> int {
 
   print_modules(parser.get_modules());
 
-  lower_hir(parser.get_modules());
+  LlirModule llir = lower_hir(parser.get_modules());
+  print_llir(llir);
 
   return 0;
 }
