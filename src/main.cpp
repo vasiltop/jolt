@@ -5,7 +5,6 @@
 #include <filesystem>
 #include <iostream>
 #include <string>
-#include <string_view>
 
 auto main(int argc, char **argv) -> int {
   bool emit_llvm_ir = false;
@@ -16,13 +15,11 @@ auto main(int argc, char **argv) -> int {
   }
 
   std::string filename = argv[1];
+  std::vector<std::string> clang_args;
 
   for (int i = 2; i < argc; ++i) {
-    std::string_view arg{argv[i]};
-    if (arg == "--emit-llvm") {
-      emit_llvm_ir = true;
-      continue;
-    }
+    // std::string_view arg{argv[i]};
+    clang_args.push_back(argv[i]);
   }
 
   Parser parser{};
@@ -39,10 +36,9 @@ auto main(int argc, char **argv) -> int {
   print_modules(parser.get_modules());
 
   LlirModule llir = lower_hir(parser.get_modules());
-  if (emit_llvm_ir)
-    print_llir(llir);
+  print_llir(llir);
 
-  jolt_emit_llvm_ir(llir, parser.get_modules());
+  jolt_emit_llvm_ir(llir, parser.get_modules(), clang_args);
 
   return 0;
 }

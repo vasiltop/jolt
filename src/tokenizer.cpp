@@ -174,6 +174,9 @@ auto Tokenizer::next_token_impl() -> Token {
         case '"':
           res += '"';
           break;
+        case '0':
+          res += '\0';
+          break;
         default:
           res += *next;
           break;

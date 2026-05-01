@@ -2,8 +2,10 @@
 
 #include "tokens.hpp"
 
+#include <cstdlib>
 #include <format>
 #include <iostream>
+#include <sstream>
 #include <unordered_map>
 
 #include <llvm/IR/BasicBlock.h>
@@ -17,9 +19,6 @@
 #include <llvm/IR/Verifier.h>
 #include <llvm/Support/FileSystem.h>
 #include <llvm/Support/raw_ostream.h>
-
-#include <cstdlib>
-#include <fstream>
 
 namespace {
 
@@ -995,17 +994,27 @@ auto verify_and_print(llvm::Module &m) -> bool {
   return true;
 }
 
-void emit_llvm_ir_impl(const LlirModule &llir, const ModulesHir &modules) {
+auto emit_llvm_ir_impl(const LlirModule &llir, const ModulesHir &modules,
+                       std::vector<std::string> clang_args) -> void {
   Backend be;
   be.hir = &modules;
   be.lower(llir);
+
   if (verify_and_print(*be.mod)) {
-    std::system("clang output.ll -o a.out");
+    std::stringstream cmd;
+    cmd << "clang output.ll -o a.out";
+
+    for (const auto &arg : clang_args) {
+      cmd << " " << arg;
+    }
+
+    std::system(cmd.str().c_str());
   }
 }
 
 } // namespace
 
-void jolt_emit_llvm_ir(const LlirModule &llir, const ModulesHir &modules) {
-  emit_llvm_ir_impl(llir, modules);
+void jolt_emit_llvm_ir(const LlirModule &llir, const ModulesHir &modules,
+                       std::vector<std::string> clang_args) {
+  emit_llvm_ir_impl(llir, modules, clang_args);
 }
