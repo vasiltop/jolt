@@ -4,20 +4,25 @@
 #include "parser.hpp"
 #include <filesystem>
 #include <iostream>
-#include <string_view>
 #include <string>
+#include <string_view>
 
 auto main(int argc, char **argv) -> int {
-  std::string filename = "./examples/values.jolt";
   bool emit_llvm_ir = false;
 
-  for (int i = 1; i < argc; ++i) {
+  if (argc <= 1) {
+    std::cout << "Usage: jolt <filename>\n";
+    return 1;
+  }
+
+  std::string filename = argv[1];
+
+  for (int i = 2; i < argc; ++i) {
     std::string_view arg{argv[i]};
     if (arg == "--emit-llvm") {
       emit_llvm_ir = true;
       continue;
     }
-    filename = argv[i];
   }
 
   Parser parser{};

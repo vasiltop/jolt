@@ -673,7 +673,8 @@ struct Backend {
                   if (ptr) {
                     llvm::Type *dest_ty = nullptr;
                     if (x.src.kind == LlirOperand::Register) {
-                      if (auto *pee = std::get_if<std::unique_ptr<PointerType>>(&x.src.type.data)) {
+                      if (auto *pee = std::get_if<std::unique_ptr<PointerType>>(
+                              &x.src.type.data)) {
                         if (*pee && (*pee)->pointee) {
                           dest_ty = map_type(*(*pee)->pointee, cur);
                         }
@@ -684,10 +685,12 @@ struct Backend {
                     }
                     regs[reg_strip(x.dest_reg)] = b.CreateLoad(dest_ty, ptr);
                   } else {
-                    llvm::Value *v = emit_operand_value(x.src, cur, locals, regs);
+                    llvm::Value *v =
+                        emit_operand_value(x.src, cur, locals, regs);
                     if (v->getType()->isPointerTy()) {
                       llvm::Type *dest_ty = nullptr;
-                      if (auto *pee = std::get_if<std::unique_ptr<PointerType>>(&x.src.type.data)) {
+                      if (auto *pee = std::get_if<std::unique_ptr<PointerType>>(
+                              &x.src.type.data)) {
                         if (*pee && (*pee)->pointee) {
                           dest_ty = map_type(*(*pee)->pointee, cur);
                         }
@@ -744,7 +747,13 @@ struct Backend {
 
                     llvm::Value *base = bp ? bp : obj;
                     llvm::Value *fp = b.CreateStructGEP(sty, base, fidx);
-                    loaded = b.CreateLoad(fty, fp);
+                    auto &field_type = hst->fields.at(fidx).type;
+
+                    if (is_aggregate_storage_ty_ll(*field_type, cur, syms)) {
+                      loaded = fp;
+                    } else {
+                      loaded = b.CreateLoad(fty, fp);
+                    }
                   }
                   regs[reg_strip(fl.dest_reg)] = loaded;
                 },
