@@ -1,0 +1,3 @@
+module memory;
+
+extern fn malloc(bytes: i64) *void;

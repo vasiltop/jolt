@@ -615,7 +615,10 @@ struct Backend {
     else if (st.dest.kind == LlirOperand::Global)
       dst_ptr = mod->getNamedGlobal(
           llvm_link_name(std::get<std::string>(st.dest.data)));
-    else
+    else if (st.dest.kind == LlirOperand::Register) {
+      auto reg_name = std::get<std::string>(st.dest.data);
+      dst_ptr = regs.at(reg_strip(reg_name));
+    } else
       return;
     llvm::Type *dst_ty = map_type(st.dest.type, cur_syms);
     llvm::Value *raw = emit_operand_value(st.value, cur_syms, locals, regs);
@@ -660,8 +663,27 @@ struct Backend {
                   emit_llir_store(x, cur, locals, regs);
                 },
                 [&](const LlirLoad &x) {
-                  llvm::Value *v = emit_operand_value(x.src, cur, locals, regs);
-                  regs[reg_strip(x.dest_reg)] = v;
+                  llvm::Value *ptr = emit_lvalue_ptr(x.src, cur, locals, regs);
+                  if (ptr) {
+                    llvm::Type *dest_ty = map_type(x.src.type, cur);
+                    regs[reg_strip(x.dest_reg)] = b.CreateLoad(dest_ty, ptr);
+                  } else {
+                    llvm::Value *v = emit_operand_value(x.src, cur, locals, regs);
+                    if (v->getType()->isPointerTy()) {
+                      llvm::Type *dest_ty = nullptr;
+                      if (auto *pee = std::get_if<std::unique_ptr<PointerType>>(&x.src.type.data)) {
+                        if (*pee && (*pee)->pointee) {
+                          dest_ty = map_type(*(*pee)->pointee, cur);
+                        }
+                      }
+                      if (!dest_ty) {
+                        dest_ty = map_type(x.src.type, cur);
+                      }
+                      regs[reg_strip(x.dest_reg)] = b.CreateLoad(dest_ty, v);
+                    } else {
+                      regs[reg_strip(x.dest_reg)] = v;
+                    }
+                  }
                 },
                 [&](const LlirAddrOf &x) {
                   regs[reg_strip(x.dest_reg)] = locals.at(x.local_slot);

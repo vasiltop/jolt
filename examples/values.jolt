@@ -1,5 +1,6 @@
 module values;
 import "./math/constants.jolt";
+import "./std/io.jolt";
 
 fn main() i32 {
     let n = 42;
@@ -14,10 +15,10 @@ fn main() i32 {
 		let afds = true;
 
 		let vector = constants:V3 {
-				x: 0.0, y: 0.0, z: 0.0
+				x: 0.0, y: 0.5, z: 5.0
 		};
 
-		let idk = constants:Idk::First;
+		io:printf("%d %d\n", vector.x, vector.y);
 
     ret n + r + 15;
 }

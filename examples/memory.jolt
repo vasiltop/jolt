@@ -1,0 +1,11 @@
+module main;
+
+extern fn malloc(bytes: i64) *void;
+extern fn printf(fmt: *u8, ...) i32;
+
+fn main() i32 {
+	let mem = malloc(8 as i64) as *i32;
+	*mem = 5;
+	printf("%d\n", *mem);
+	ret 0;
+}

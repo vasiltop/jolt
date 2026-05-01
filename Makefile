@@ -1,7 +1,7 @@
 files := $(wildcard src/*.cpp src/*.hpp)
 source_files := $(wildcard src/*.cpp)
 compiler := g++
-out := bin/compiler
+out := bin/jolt
 version := c++23
 
 LLVM_CONFIG ?= llvm-config
@@ -30,4 +30,4 @@ test: $(out)
 	tests/run.sh
 
 clean:
-	rm -rf bin/compiler bin/compiler.dSYM
+	rm -rf bin/jolt bin/jolt.dSYM

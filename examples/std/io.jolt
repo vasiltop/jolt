@@ -1,0 +1,3 @@
+module io;
+
+extern fn printf(fmt: *u8, ...) i32;
