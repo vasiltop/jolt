@@ -1,0 +1,8 @@
+module common;
+extern fn abort() void;
+
+fn assert(cond: bool) void {
+    if cond == false {
+        abort();
+    }
+}

@@ -1,0 +1,13 @@
+module tests;
+import "./common.jolt";
+
+fn main() i32 {
+    let val = 42;
+    let ptr = &val;
+    let pptr = &ptr;
+    
+    **pptr = 100;
+    
+    common:assert(val == 100);
+    ret 0;
+}

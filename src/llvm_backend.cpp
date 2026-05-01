@@ -480,6 +480,12 @@ struct Backend {
       return mod->getNamedGlobal(
           llvm_link_name(std::get<std::string>(op.data)));
     }
+    if (op.kind == LlirOperand::Register) {
+      llvm::Value *val = regs.at(reg_strip(std::get<std::string>(op.data)));
+      if (val->getType()->isPointerTy()) {
+        return val;
+      }
+    }
     return nullptr;
   }
 
@@ -665,7 +671,17 @@ struct Backend {
                 [&](const LlirLoad &x) {
                   llvm::Value *ptr = emit_lvalue_ptr(x.src, cur, locals, regs);
                   if (ptr) {
-                    llvm::Type *dest_ty = map_type(x.src.type, cur);
+                    llvm::Type *dest_ty = nullptr;
+                    if (x.src.kind == LlirOperand::Register) {
+                      if (auto *pee = std::get_if<std::unique_ptr<PointerType>>(&x.src.type.data)) {
+                        if (*pee && (*pee)->pointee) {
+                          dest_ty = map_type(*(*pee)->pointee, cur);
+                        }
+                      }
+                    }
+                    if (!dest_ty) {
+                      dest_ty = map_type(x.src.type, cur);
+                    }
                     regs[reg_strip(x.dest_reg)] = b.CreateLoad(dest_ty, ptr);
                   } else {
                     llvm::Value *v = emit_operand_value(x.src, cur, locals, regs);

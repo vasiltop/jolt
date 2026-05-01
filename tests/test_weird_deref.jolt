@@ -1,0 +1,21 @@
+module tests;
+import "./common.jolt";
+
+struct Node {
+    val: i32;
+    next: *Node;
+}
+
+fn main() i32 {
+    let n2 = Node { val: 200, next: 0 as *Node };
+    let n1 = Node { val: 100, next: &n2 };
+    
+    let p1 = &n1;
+    
+    (*(*p1).next).val = 300;
+    
+    common:assert(n1.val == 100);
+    common:assert(n2.val == 300);
+    
+    ret 0;
+}

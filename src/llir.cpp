@@ -545,6 +545,12 @@ auto Emitter::emit_address_of(const HirExpr &e) -> LlirOperand {
     out.type = make_ptr_ty(std::move(inner_ty));
     return out;
   }
+  if (auto *uniq_u = std::get_if<std::unique_ptr<HirExprUnary>>(&e.item)) {
+    if (uniq_u && *uniq_u && (*uniq_u)->op.kind == TokenKind::Mul) {
+      LlirOperand ptr = materialize_primitive_or_pointer(emit_rvalue(*(*uniq_u)->expr));
+      return ptr;
+    }
+  }
   auto *uniq_mem = std::get_if<std::unique_ptr<HirExprMember>>(&e.item);
   if (!uniq_mem || !*uniq_mem)
     return LlirOperand{.kind = LlirOperand::Register,
@@ -878,13 +884,8 @@ void Emitter::emit_store_to_lvalue(const HirExpr &lhs, LlirOperand rhs) {
             });
           },
           [&](const std::unique_ptr<HirExprMember> &memb) {
-            LlirOperand ob =
-                emit_aggregate_for_member_inner(*memb->object, /*unwrap=*/true);
-            emit_inst(LlirFieldStore{
-                .object = std::move(ob),
-                .field = memb->member.text,
-                .value = std::move(rhs_use),
-            });
+            LlirOperand ptr = emit_address_of(lhs);
+            emit_inst(LlirStore{.dest = std::move(ptr), .value = std::move(rhs_use)});
           },
           [&](const std::unique_ptr<HirExprUnary> &u) {
             if (u->op.kind == TokenKind::Mul) {

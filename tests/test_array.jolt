@@ -1,0 +1,13 @@
+module tests;
+import "./common.jolt";
+
+fn main() i32 {
+    let arr = [10, 20, 30, 40];
+    arr[2] = 99;
+    
+    common:assert(arr[0] == 10);
+    common:assert(arr[2] == 99);
+    common:assert(arr[3] == 40);
+    
+    ret 0;
+}

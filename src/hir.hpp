@@ -27,7 +27,12 @@ struct HirTypePtr {
   std::unique_ptr<HirType> base;
 };
 
-using HirTypeItem = std::variant<HirTypePath, std::unique_ptr<HirTypePtr>>;
+struct HirTypeArray {
+  std::unique_ptr<HirType> element;
+  std::string size_literal;
+};
+
+using HirTypeItem = std::variant<HirTypePath, std::unique_ptr<HirTypePtr>, std::unique_ptr<HirTypeArray>>;
 
 struct HirType {
   HirTypeItem item;

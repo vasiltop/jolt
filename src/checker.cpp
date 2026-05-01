@@ -93,6 +93,8 @@ static auto hir_type_start_pos(const HirType &ht) -> Pos {
           if (arg.module)
             return arg.module->pos;
           return arg.name.pos;
+        } else if constexpr (std::is_same_v<T, std::unique_ptr<HirTypeArray>>) {
+          return hir_type_start_pos(*arg->element);
         } else if constexpr (std::is_same_v<T, std::unique_ptr<HirTypePtr>>) {
           if (!arg || !arg->base)
             return kUnknownPos;
@@ -338,6 +340,13 @@ auto Checker::hir_to_type(const HirType &ht, std::vector<Error> &errors,
           this->add_error(errors, pos,
                           std::format("unknown type `{}:{}`", mod, nm));
           return std::nullopt;
+        } else if constexpr (std::is_same_v<T, std::unique_ptr<HirTypeArray>>) {
+          auto inner = this->hir_to_type(*arg->element, errors, pos, scope);
+          if (!inner) return std::nullopt;
+          auto arr = std::make_unique<ArrayType>();
+          arr->element = std::make_unique<Type>(std::move(*inner));
+          arr->size = std::stoull(arg->size_literal);
+          return Type{std::move(arr)};
         } else if constexpr (std::is_same_v<T, std::unique_ptr<HirTypePtr>>) {
           if (!arg || !arg->base)
             return std::nullopt;

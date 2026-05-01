@@ -11,6 +11,8 @@ auto HirType::to_string() const -> std::string {
           if (arg.module)
             return std::format("{}:{}", arg.module->text, arg.name.text);
           return arg.name.text;
+        } else if constexpr (std::is_same_v<T, std::unique_ptr<HirTypeArray>>) {
+          return "[" + arg->element->to_string() + "; " + arg->size_literal + "]";
         } else if constexpr (std::is_same_v<T, std::unique_ptr<HirTypePtr>>) {
           return "*" + arg->base->to_string();
         } else {
@@ -21,6 +23,21 @@ auto HirType::to_string() const -> std::string {
 }
 
 auto HirType::try_parse(Tokenizer &tokenizer) -> std::expected<HirType, Error> {
+  if (tokenizer.peek().kind == TokenKind::BracketOpen) {
+    tokenizer.consume();
+    auto base = HirType::try_parse(tokenizer);
+    PROP_ERR(base);
+    auto _sem = tokenizer.expect_token_and_pop(TokenKind::Semicolon);
+    PROP_ERR(_sem);
+    auto _len = tokenizer.expect_token_and_pop(TokenKind::Integer);
+    PROP_ERR(_len);
+    auto _rb = tokenizer.expect_token_and_pop(TokenKind::BracketClose);
+    PROP_ERR(_rb);
+    auto arr = std::make_unique<HirTypeArray>();
+    arr->element = std::make_unique<HirType>(std::move(*base));
+    arr->size_literal = _len->text;
+    return HirType{.item = std::move(arr)};
+  }
   if (tokenizer.peek().kind == TokenKind::Mul) {
     tokenizer.consume();
     auto base = HirType::try_parse(tokenizer);
