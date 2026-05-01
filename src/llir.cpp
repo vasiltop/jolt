@@ -183,6 +183,25 @@ auto resolve_named_enum(
   return e == mod_it->second.enums_by_name.end() ? nullptr : e->second;
 }
 
+auto resolve_fn(
+    const std::optional<Token> &module_opt, const std::string &name,
+    const ModuleSymbols &for_module,
+    const std::unordered_map<std::string, ModuleSymbols> &all_mods)
+    -> const HirFnDef * {
+  if (!module_opt) {
+    auto it = for_module.fns_by_name.find(name);
+    return it == for_module.fns_by_name.end() ? nullptr : it->second;
+  }
+  auto ali = for_module.import_alias_to_target_module.find(module_opt->text);
+  if (ali == for_module.import_alias_to_target_module.end())
+    return nullptr;
+  auto mod_it = all_mods.find(ali->second);
+  if (mod_it == all_mods.end())
+    return nullptr;
+  auto f = mod_it->second.fns_by_name.find(name);
+  return f == mod_it->second.fns_by_name.end() ? nullptr : f->second;
+}
+
 auto hir_path_to_named(const HirTypePath &tp) -> std::unique_ptr<NamedType> {
   if (!tp.module)
     return nullptr;
@@ -720,8 +739,13 @@ auto Emitter::emit_rvalue(const HirExpr &e) -> LlirOperand {
             const HirExprCall *call = call_ptr.get();
             auto *callee_path = path_top_level(*call->callee);
             std::string mangled = "unknown_call";
-            if (callee_path)
-              mangled = path_mangled_path(*callee_path);
+            if (callee_path) {
+              auto *fn_def = resolve_fn(callee_path->module, callee_path->name.text, cur_syms(), *all_syms);
+              if (fn_def && fn_def->is_extern)
+                mangled = callee_path->name.text;
+              else
+                mangled = path_mangled_path(*callee_path);
+            }
             std::vector<LlirOperand> args;
             args.reserve(call->args.size());
             for (const auto &arg : call->args)
@@ -1054,8 +1078,10 @@ void Emitter::lower_fn_body(const HirFnDef &hir_fn) {
                   .value = std::move(arg)});
   }
 
-  for (const auto &st : hir_fn.block.stmts)
-    emit_stmt(st);
+  if (hir_fn.block) {
+    for (const auto &st : hir_fn.block->stmts)
+      emit_stmt(st);
+  }
 
   if (!block_ends_with_terminal()) {
     if (is_void_type(return_ty))
@@ -1124,23 +1150,42 @@ auto lower_hir(const ModulesHir &modules) -> LlirModule {
       if (auto *f = std::get_if<HirFnDef>(&node)) {
         mod.functions.push_back(LlirFunction{});
         LlirFunction &lf = mod.functions.back();
-        lf.name = symbol_mangled(mid, f->name.text);
+        if (f->is_extern) {
+          lf.name = f->name.text;
+        } else {
+          lf.name = symbol_mangled(mid, f->name.text);
+        }
+        lf.is_extern = f->is_extern;
+        lf.is_variadic = f->is_variadic;
+        lf.defining_module = mid;
         lf.return_type = function_return_type_llir(*f, syms.at(mid), syms);
         lf.params.reserve(f->params.size());
+        bool herr_params = false;
         for (const auto &par : f->params) {
+          Type pty = [&]() -> Type {
+            if (auto pt =
+                    hir_to_type_llir(par.hir_type, syms.at(mid), syms, herr_params))
+              return clone_type_deep(*pt);
+            if (par.type)
+              return clone_type_deep(*par.type);
+            return clone_type_deep(Type{PrimitiveType{PrimitiveKind::I32}});
+          }();
           std::string td =
               par.type ? type_to_string(*par.type) : par.hir_type.to_string();
-          lf.params.push_back(
-              LlirParam{.name = par.name.text, .type_display = std::move(td)});
+          lf.params.push_back(LlirParam{.name = par.name.text,
+                                        .type_display = std::move(td),
+                                        .type = std::move(pty)});
         }
 
-        Emitter em;
-        em.all_syms = &syms;
-        em.out = &mod;
-        em.cur_module = mid;
-        em.fn = &lf;
-        em.return_ty = clone_type_deep(lf.return_type);
-        em.lower_fn_body(*f);
+        if (!f->is_extern) {
+          Emitter em;
+          em.all_syms = &syms;
+          em.out = &mod;
+          em.cur_module = mid;
+          em.fn = &lf;
+          em.return_ty = clone_type_deep(lf.return_type);
+          em.lower_fn_body(*f);
+        }
       }
     }
   }

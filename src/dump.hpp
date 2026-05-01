@@ -289,7 +289,9 @@ inline void print_hir(const HirFnDef &fn, int indent) {
   std::cout << "FnDef: " << fn.name.text << "() -> "
             << (fn.return_type ? fn.return_type->to_string() : "void") << " ["
             << type_to_string(fn.type) << "]\n";
-  print_hir(fn.block, indent + 1);
+  if (fn.block) {
+    print_hir(*fn.block, indent + 1);
+  }
 }
 
 inline void print_hir(const HirTypedIdent &typed_ident, int indent) {

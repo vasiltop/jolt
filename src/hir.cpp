@@ -536,7 +536,7 @@ auto HirBlock::try_parse(Tokenizer &tokenizer)
   return block;
 }
 
-auto HirFnDef::try_parse(Tokenizer &tokenizer)
+auto HirFnDef::try_parse(Tokenizer &tokenizer, bool is_extern)
     -> std::expected<HirFnDef, Error> {
   tokenizer.expect_token_and_pop(TokenKind::Fn);
   auto name_tok = tokenizer.expect_token_and_pop(TokenKind::Ident);
@@ -545,7 +545,14 @@ auto HirFnDef::try_parse(Tokenizer &tokenizer)
   tokenizer.expect_token_and_pop(TokenKind::ParenOpen);
 
   std::vector<HirTypedIdent> params;
+  bool is_variadic = false;
   while (tokenizer.peek().kind != TokenKind::ParenClose) {
+    if (tokenizer.peek().kind == TokenKind::DotDotDot) {
+      tokenizer.consume();
+      is_variadic = true;
+      break;
+    }
+    
     auto arg_name_tok = tokenizer.expect_token_and_pop(TokenKind::Ident);
     PROP_ERR(arg_name_tok);
 
@@ -563,19 +570,27 @@ auto HirFnDef::try_parse(Tokenizer &tokenizer)
   tokenizer.expect_token_and_pop(TokenKind::ParenClose);
 
   std::optional<HirType> return_type_tok;
-  if (tokenizer.peek().kind != TokenKind::BraceOpen) {
+  if (tokenizer.peek().kind != TokenKind::BraceOpen && tokenizer.peek().kind != TokenKind::Semicolon) {
     auto rt = HirType::try_parse(tokenizer);
     PROP_ERR(rt);
     return_type_tok = std::move(*rt);
   }
 
-  auto body = HirBlock::try_parse(tokenizer);
-  PROP_ERR(body);
+  std::optional<HirBlock> body;
+  if (is_extern) {
+    tokenizer.expect_token_and_pop(TokenKind::Semicolon);
+  } else {
+    auto parsed_body = HirBlock::try_parse(tokenizer);
+    PROP_ERR(parsed_body);
+    body = std::move(*parsed_body);
+  }
 
   return HirFnDef{.name = *name_tok,
+                  .is_extern = is_extern,
+                  .is_variadic = is_variadic,
                   .params = std::move(params),
                   .return_type = std::move(return_type_tok),
-                  .block = std::move(*body)};
+                  .block = std::move(body)};
 }
 
 auto HirStruct::try_parse(Tokenizer &tokenizer)

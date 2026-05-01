@@ -2,3 +2,9 @@
 -Wall
 -pedantic-errors
 -Wunused-variable
+-I/opt/homebrew/Cellar/llvm/22.1.4/include
+-D__STDC_CONSTANT_MACROS
+-D__STDC_FORMAT_MACROS
+-D__STDC_LIMIT_MACROS
+-stdlib=libc++
+-fno-exceptions

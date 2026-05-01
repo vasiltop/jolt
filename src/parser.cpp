@@ -105,6 +105,11 @@ auto Parser::hir(Tokenizer &tokenizer,
       auto fn = HirFnDef::try_parse(tokenizer);
       PROP_ERR(fn);
       nodes.emplace_back(std::move(*fn));
+    } else if (next.kind == TokenKind::Extern) {
+      tokenizer.consume();
+      auto fn = HirFnDef::try_parse(tokenizer, true);
+      PROP_ERR(fn);
+      nodes.emplace_back(std::move(*fn));
     } else if (next.kind == TokenKind::Struct) {
       auto struct_def = HirStruct::try_parse(tokenizer);
       PROP_ERR(struct_def);

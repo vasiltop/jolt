@@ -185,6 +185,7 @@ auto clone_type_impl(const Type &ty) -> Type {
           if (arg->return_type)
             f->return_type =
                 std::make_unique<Type>(clone_type_impl(*arg->return_type));
+          f->is_variadic = arg->is_variadic;
           return Type{.data = std::move(f)};
         } else if constexpr (std::is_same_v<T, std::unique_ptr<NamedType>>) {
           auto n = std::make_unique<NamedType>();
@@ -255,6 +256,9 @@ auto Checker::types_compatible(const Type &a, const Type &b) -> bool {
   if (is_null_literal_type(a) && is_pointer_semantic_type(b))
     return true;
   if (is_null_literal_type(b) && is_pointer_semantic_type(a))
+    return true;
+  if ((type_to_string(a) == "string" && type_to_string(b) == "u8*") ||
+      (type_to_string(a) == "u8*" && type_to_string(b) == "string"))
     return true;
   return false;
 }
@@ -371,6 +375,7 @@ auto Checker::function_type_for(const HirFnDef &fn, std::vector<Error> &errors,
   auto ft = std::make_unique<FunctionType>();
   ft->params = std::move(params);
   ft->return_type = std::move(ret_ty);
+  ft->is_variadic = fn.is_variadic;
   return Type{.data = std::move(ft)};
 }
 
@@ -952,14 +957,20 @@ void Checker::check(HirExprCall &call, std::vector<Error> &errors,
     return;
   }
   const auto &sig = **fn_ty;
-  if (sig.params.size() != call.args.size()) {
+  if (!sig.is_variadic && sig.params.size() != call.args.size()) {
     add_error(errors, call_pos,
               std::format("expected {} arguments, got {}", sig.params.size(),
                           call.args.size()));
     return;
   }
+  if (sig.is_variadic && call.args.size() < sig.params.size()) {
+    add_error(errors, call_pos,
+              std::format("expected at least {} arguments, got {}", sig.params.size(),
+                          call.args.size()));
+    return;
+  }
   for (size_t i = 0; i < call.args.size(); ++i) {
-    if (call.args[i].type &&
+    if (i < sig.params.size() && call.args[i].type &&
         !types_compatible(sig.params[i], *call.args[i].type))
       add_error(
           errors, expr_start_pos(call.args[i]),
@@ -1091,7 +1102,8 @@ void Checker::check(HirFnDef &fn, std::vector<Error> &errors, Scope &scope) {
   }
   if (fn.return_type)
     check(*fn.return_type, errors, scope);
-  check(fn.block, errors, body);
+  if (fn.block)
+    check(*fn.block, errors, body);
 }
 
 void Checker::check(HirStruct &strct, std::vector<Error> &errors,

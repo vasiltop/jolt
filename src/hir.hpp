@@ -7,6 +7,7 @@
 #include <expected>
 #include <memory>
 #include <optional>
+#include <unordered_map>
 #include <variant>
 #include <vector>
 
@@ -232,11 +233,13 @@ struct HirTypedIdent : HirBase {
 // Top-Level Items
 struct HirFnDef : HirBase {
   Token name;
+  bool is_extern = false;
+  bool is_variadic = false;
   std::vector<HirTypedIdent> params;
   std::optional<HirType> return_type;
-  HirBlock block;
+  std::optional<HirBlock> block;
 
-  static auto try_parse(Tokenizer &tokenizer) -> std::expected<HirFnDef, Error>;
+  static auto try_parse(Tokenizer &tokenizer, bool is_extern = false) -> std::expected<HirFnDef, Error>;
 };
 
 struct HirStruct : HirBase {

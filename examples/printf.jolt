@@ -1,0 +1,12 @@
+module main;
+
+extern fn printf(fmt: *u8, ...) i32;
+
+fn main() i32 {
+		let x = 5;
+		while x < 10 {
+			x = x + 1;
+			printf("%d\n", x);
+		}
+    ret 0;
+}

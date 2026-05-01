@@ -61,6 +61,7 @@ struct TupleType {
 struct FunctionType {
   std::vector<Type> params;
   std::unique_ptr<Type> return_type;
+  bool is_variadic = false;
 };
 
 struct NamedType {
@@ -140,6 +141,10 @@ inline std::string type_to_string(const Type &ty) {
             if (i)
               out += ", ";
             out += type_to_string(arg->params[i]);
+          }
+          if (arg->is_variadic) {
+            if (!arg->params.empty()) out += ", ";
+            out += "...";
           }
           out += ")";
           if (arg->return_type)

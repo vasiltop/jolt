@@ -48,8 +48,7 @@ auto Tokenizer::get_line_contents(size_t offset) const -> std::string {
   return line_at_offset(data_, offset);
 }
 
-auto Tokenizer::make_error(Pos pos, std::string_view message) const
-    -> Error {
+auto Tokenizer::make_error(Pos pos, std::string_view message) const -> Error {
   return make_source_error(get_filename(), data_, pos, message);
 }
 
@@ -67,7 +66,7 @@ auto Tokenizer::expect_token_and_pop(TokenKind kind)
     auto expected = token_kind_string[static_cast<size_t>(kind)];
     return std::unexpected(
         make_error(tok.pos, std::format("expected token '{}', found '{}'",
-                                         expected, found)));
+                                        expected, found)));
   }
 
   return tok;
@@ -149,20 +148,49 @@ auto Tokenizer::next_token_impl() -> Token {
 
   } else if (cur == '"') {
     t.kind = TokenKind::String;
-    // Note: first currently points to the opening quote.
-    for (auto o = peek_char(); o && *o != '"'; o = peek_char()) {
-      next_char();
-      count++;
+    std::string res;
+
+    while (auto o = peek_char()) {
+      if (*o == '"')
+        break;
+
+      if (*o == '\\') {
+        next_char();
+        auto next = next_char();
+
+        if (!next)
+          break;
+
+        switch (*next) {
+        case '\\':
+          res += '\\';
+          break;
+        case 'n':
+          res += '\n';
+          break;
+        case 't':
+          res += '\t';
+          break;
+        case '"':
+          res += '"';
+          break;
+        default:
+          res += *next;
+          break;
+        }
+      } else {
+        res += *o;
+        next_char();
+      }
     }
 
     if (peek_char() == '"') {
-      next_char(); // consume closing quote
-      count++;
+      next_char();
     } else {
       t.kind = TokenKind::Invalid;
     }
 
-    t.text = std::string_view(first, count);
+    t.text = res;
 
   } else if (cur == '\'') {
     t.kind = TokenKind::Char;
@@ -261,8 +289,15 @@ auto Tokenizer::next_token_impl() -> Token {
       if (peek_char() == '.') {
         next_char();
         count++;
-        t.kind = TokenKind::DotDot;
-        t.text = std::string_view(first, count);
+        if (peek_char() == '.') {
+          next_char();
+          count++;
+          t.kind = TokenKind::DotDotDot;
+          t.text = std::string_view(first, count);
+        } else {
+          t.kind = TokenKind::DotDot;
+          t.text = std::string_view(first, count);
+        }
       } else {
         t.kind = TokenKind::Dot;
       }

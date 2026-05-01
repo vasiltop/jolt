@@ -141,11 +141,16 @@ struct LlirParam {
   std::string name;
   /// Human-readable signature fragment (HIR type text or semantic print).
   std::string type_display;
+  /// Checked parameter type for backends (LLVM, etc.).
+  Type type = Type{PrimitiveType{PrimitiveKind::I32}};
 };
 
 struct LlirFunction {
   std::string name;
   Type return_type;
+  bool is_extern = false;
+  bool is_variadic = false;
+  std::string defining_module;
   std::vector<LlirParam> params;
   std::vector<LlirBlock> blocks;
 };
